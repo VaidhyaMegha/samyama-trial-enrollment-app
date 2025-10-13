@@ -10,6 +10,9 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import EligibilityCheck from "./pages/EligibilityCheck";
+import Protocols from "./pages/Protocols";
+import Enrollment from "./pages/Enrollment";
 
 const queryClient = new QueryClient();
 
@@ -44,9 +47,7 @@ const App = () => (
                 path="/eligibility-check"
                 element={
                   <AppLayout>
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-muted-foreground">Eligibility check page coming soon...</p>
-                    </div>
+                    <EligibilityCheck />
                   </AppLayout>
                 }
               />
@@ -54,9 +55,7 @@ const App = () => (
                 path="/protocols"
                 element={
                   <AppLayout>
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-muted-foreground">Protocol management page coming soon...</p>
-                    </div>
+                    <Protocols />
                   </AppLayout>
                 }
               />
@@ -64,9 +63,7 @@ const App = () => (
                 path="/enrollment"
                 element={
                   <AppLayout>
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-muted-foreground">Enrollment page coming soon...</p>
-                    </div>
+                    <Enrollment />
                   </AppLayout>
                 }
               />

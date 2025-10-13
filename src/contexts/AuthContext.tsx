@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { User, UserRole, AuthState } from '@/types/auth';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { signIn, signOut, fetchAuthSession, getCurrentUser } from '@aws-amplify/auth';
+import { jwtDecode } from 'jwt-decode';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
@@ -11,30 +13,12 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user data - In production, this would come from AWS Amplify
-const MOCK_USERS = {
-  'crc@trial.com': { 
-    id: '1', 
-    email: 'crc@trial.com', 
-    name: 'Sarah Johnson', 
-    role: 'CRC' as UserRole,
-    password: 'demo123'
-  },
-  'admin@trial.com': { 
-    id: '2', 
-    email: 'admin@trial.com', 
-    name: 'Dr. Michael Chen', 
-    role: 'StudyAdmin' as UserRole,
-    password: 'demo123'
-  },
-  'pi@trial.com': { 
-    id: '3', 
-    email: 'pi@trial.com', 
-    name: 'Dr. Emily Rodriguez', 
-    role: 'PI' as UserRole,
-    password: 'demo123'
-  },
-};
+interface CognitoIdToken {
+  'cognito:groups'?: string[];
+  email?: string;
+  name?: string;
+  sub: string;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -43,33 +27,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check for existing session
-    const storedUser = localStorage.getItem('clinical_trial_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    checkAuthStatus();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const checkAuthStatus = async () => {
+    try {
+      const session = await fetchAuthSession();
+      if (session.tokens?.idToken) {
+        const idToken = session.tokens.idToken.toString();
+        const decodedToken = jwtDecode<CognitoIdToken>(idToken);
+        
+        const currentUserInfo = await getCurrentUser();
+        
+        // Extract role from Cognito groups
+        const groups = decodedToken['cognito:groups'] || [];
+        let role: UserRole = 'CRC';
+        if (groups.includes('StudyAdmin')) role = 'StudyAdmin';
+        else if (groups.includes('PI')) role = 'PI';
+        else if (groups.includes('CRC')) role = 'CRC';
+        
+        const userData: User = {
+          id: decodedToken.sub,
+          email: decodedToken.email || currentUserInfo.username,
+          name: decodedToken.name || currentUserInfo.username,
+          role,
+        };
+        
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error('Failed to check auth status:', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const login = async (username: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const mockUser = MOCK_USERS[email as keyof typeof MOCK_USERS];
+      await signIn({ username, password });
       
-      if (!mockUser || mockUser.password !== password) {
-        throw new Error('Invalid credentials');
+      // Get session and decode token
+      const session = await fetchAuthSession();
+      const idToken = session.tokens?.idToken?.toString();
+      
+      if (!idToken) {
+        throw new Error('Failed to get ID token');
       }
-
-      const { password: _, ...userWithoutPassword } = mockUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('clinical_trial_user', JSON.stringify(userWithoutPassword));
       
-      toast.success(`Welcome back, ${userWithoutPassword.name}!`);
+      const decodedToken = jwtDecode<CognitoIdToken>(idToken);
+      const currentUserInfo = await getCurrentUser();
+      
+      // Extract role from Cognito groups
+      const groups = decodedToken['cognito:groups'] || [];
+      let role: UserRole = 'CRC';
+      if (groups.includes('StudyAdmin')) role = 'StudyAdmin';
+      else if (groups.includes('PI')) role = 'PI';
+      else if (groups.includes('CRC')) role = 'CRC';
+      
+      const userData: User = {
+        id: decodedToken.sub,
+        email: decodedToken.email || currentUserInfo.username,
+        name: decodedToken.name || currentUserInfo.username,
+        role,
+      };
+      
+      setUser(userData);
+      toast.success(`Welcome back, ${userData.name}!`);
       navigate('/dashboard');
-    } catch (error) {
-      toast.error('Invalid email or password');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Invalid username or password');
       throw error;
     } finally {
       setIsLoading(false);
@@ -77,10 +106,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    setUser(null);
-    localStorage.removeItem('clinical_trial_user');
-    toast.success('Logged out successfully');
-    navigate('/login');
+    try {
+      await signOut();
+      setUser(null);
+      toast.success('Logged out successfully');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to logout');
+    }
   };
 
   const updateUser = (updates: Partial<User>) => {

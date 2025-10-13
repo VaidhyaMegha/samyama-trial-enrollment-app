@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  username: z.string().min(3, 'Username must be at least 3 characters'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -40,7 +40,7 @@ export default function Login() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      await login(data.email, data.password);
+      await login(data.username, data.password);
     } catch (error) {
       // Error handled in auth context
     } finally {
@@ -84,16 +84,16 @@ export default function Login() {
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="your.email@example.com"
-                  {...register('email')}
+                  id="username"
+                  type="text"
+                  placeholder="Enter your username"
+                  {...register('username')}
                   className="bg-background/50"
                 />
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                {errors.username && (
+                  <p className="text-sm text-destructive">{errors.username.message}</p>
                 )}
               </div>
 
@@ -128,11 +128,11 @@ export default function Login() {
             </form>
 
             <div className="mt-6 p-4 bg-muted/50 rounded-lg space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground">Demo Credentials:</p>
+              <p className="text-xs font-semibold text-muted-foreground">Test Credentials:</p>
               <div className="text-xs space-y-1 text-muted-foreground">
-                <p><strong>CRC:</strong> crc@trial.com / demo123</p>
-                <p><strong>Admin:</strong> admin@trial.com / demo123</p>
-                <p><strong>PI:</strong> pi@trial.com / demo123</p>
+                <p><strong>CRC:</strong> crc_test / TestCRC@2025!</p>
+                <p><strong>StudyAdmin:</strong> studyadmin_test / TestAdmin@2025!</p>
+                <p><strong>PI:</strong> pi_test / TestPI@2025!</p>
               </div>
             </div>
           </CardContent>
