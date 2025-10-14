@@ -13,6 +13,8 @@ import NotFound from "./pages/NotFound";
 import EligibilityCheck from "./pages/EligibilityCheck";
 import Protocols from "./pages/Protocols";
 import Enrollment from "./pages/Enrollment";
+import Matches from "./pages/Matches";
+import Patients from "./pages/Patients";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +66,22 @@ const App = () => (
                 element={
                   <AppLayout>
                     <Enrollment />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/matches"
+                element={
+                  <AppLayout>
+                    <Matches />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/patients"
+                element={
+                  <AppLayout>
+                    <Patients />
                   </AppLayout>
                 }
               />

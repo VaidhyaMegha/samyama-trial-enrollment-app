@@ -34,6 +34,7 @@ export function AppSidebar() {
 
     const roleSpecific = {
       CRC: [
+        { title: 'Patients', url: '/patients', icon: Users },
         { title: 'Eligibility Check', url: '/eligibility-check', icon: ClipboardCheck },
         { title: 'Patient Matches', url: '/matches', icon: Activity },
       ],
@@ -42,8 +43,8 @@ export function AppSidebar() {
         { title: 'Analytics', url: '/analytics', icon: Activity },
       ],
       PI: [
-        { title: 'Enrollment', url: '/enrollment', icon: Users },
-        { title: 'Match Review', url: '/review', icon: ClipboardCheck },
+        { title: 'Enrollment', url: '/enrollment', icon: ClipboardCheck },
+        { title: 'Match Review', url: '/review', icon: Activity },
       ],
     };
 
