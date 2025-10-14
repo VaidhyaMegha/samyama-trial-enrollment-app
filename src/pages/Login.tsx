@@ -76,7 +76,7 @@ export default function Login() {
             </motion.div>
             <div>
               <CardTitle className="text-2xl font-bold text-foreground">
-                Clinical Trial System
+                Clinical Trial Enrollment System
               </CardTitle>
               <CardDescription className="text-muted-foreground">
                 Sign in to access the platform
