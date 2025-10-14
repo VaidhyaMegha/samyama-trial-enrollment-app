@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Upload, Loader2, CheckCircle2, Users } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Search, Upload, Loader2, CheckCircle2, Users, FileDown, TrendingUp, AlertCircle, CheckCircle, XCircle, Activity } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,8 +16,11 @@ import { protocolsAPI, eligibilityAPI, patientsAPI, matchesAPI } from '@/service
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function EligibilityCheck() {
+  const location = useLocation();
   const [selectedProtocol, setSelectedProtocol] = useState<any>(null);
   const [protocolSearch, setProtocolSearch] = useState('');
   const [protocols, setProtocols] = useState<any[]>([]);
@@ -35,6 +38,25 @@ export default function EligibilityCheck() {
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [patientSearch, setPatientSearch] = useState('');
   const [patientPopoverOpen, setPatientPopoverOpen] = useState(false);
+
+  // Check for patient data from navigation state
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.patientData) {
+      const patient = state.patientData;
+      setSelectedPatient(patient);
+
+      // Pre-populate patient data fields
+      setPatientData({
+        ...patientData,
+        age: patient.age?.toString() || '',
+        gender: patient.gender || '',
+        birthDate: patient.birthDate || '',
+      });
+
+      toast.success(`Patient ${patient.name} loaded`);
+    }
+  }, [location]);
 
   // Load all protocols on component mount
   useEffect(() => {
@@ -212,10 +234,124 @@ export default function EligibilityCheck() {
     }
   };
 
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 80) return 'bg-success text-success-foreground';
-    if (confidence >= 50) return 'bg-warning text-warning-foreground';
-    return 'bg-destructive text-destructive-foreground';
+  const handleExportPDF = () => {
+    if (!results || !selectedProtocol) {
+      toast.error('No results to export');
+      return;
+    }
+
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+
+      // Header
+      doc.setFontSize(20);
+      doc.setTextColor(31, 41, 55); // gray-800
+      doc.text('Eligibility Assessment Report', pageWidth / 2, 20, { align: 'center' });
+
+      // Date
+      doc.setFontSize(10);
+      doc.setTextColor(107, 114, 128); // gray-500
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 28, { align: 'center' });
+
+      // Protocol Information
+      doc.setFontSize(14);
+      doc.setTextColor(31, 41, 55);
+      doc.text('Protocol Information', 14, 40);
+
+      doc.setFontSize(10);
+      doc.setTextColor(55, 65, 81);
+      doc.text(`Protocol ID: ${selectedProtocol.nctId}`, 14, 48);
+      doc.text(`Title: ${selectedProtocol.title}`, 14, 54);
+      doc.text(`Phase: ${selectedProtocol.phase}`, 14, 60);
+      doc.text(`Disease: ${selectedProtocol.disease}`, 14, 66);
+
+      // Patient Information
+      doc.setFontSize(14);
+      doc.setTextColor(31, 41, 55);
+      doc.text('Patient Information', 14, 78);
+
+      doc.setFontSize(10);
+      doc.setTextColor(55, 65, 81);
+      doc.text(`Age: ${patientData.age} years`, 14, 86);
+      doc.text(`Gender: ${patientData.gender}`, 14, 92);
+      doc.text(`ECOG Status: ${patientData.ecogStatus}`, 14, 98);
+
+      // Overall Score
+      doc.setFontSize(14);
+      doc.setTextColor(31, 41, 55);
+      doc.text('Overall Match Score', 14, 110);
+
+      doc.setFontSize(24);
+      const scoreColor = results.overallConfidence >= 80 ? [34, 197, 94] :
+                        results.overallConfidence >= 50 ? [251, 191, 36] :
+                        [239, 68, 68];
+      doc.setTextColor(scoreColor[0], scoreColor[1], scoreColor[2]);
+      doc.text(`${results.overallConfidence}%`, 14, 122);
+
+      // Criteria Summary
+      const metCount = results.criteria.filter((c: any) => c.met).length;
+      const totalCount = results.criteria.length;
+
+      doc.setFontSize(10);
+      doc.setTextColor(55, 65, 81);
+      doc.text(`Criteria Met: ${metCount} / ${totalCount}`, 14, 130);
+
+      // Criteria Details Table
+      doc.setFontSize(14);
+      doc.setTextColor(31, 41, 55);
+      doc.text('Detailed Criteria Analysis', 14, 142);
+
+      const tableData = results.criteria.map((criterion: any) => [
+        criterion.text.substring(0, 60) + (criterion.text.length > 60 ? '...' : ''),
+        criterion.met ? 'Met' : 'Not Met',
+        `${criterion.confidence}%`,
+        criterion.patientValue?.substring(0, 40) + (criterion.patientValue?.length > 40 ? '...' : '') || 'N/A'
+      ]);
+
+      autoTable(doc, {
+        head: [['Criterion', 'Status', 'Confidence', 'Patient Value']],
+        body: tableData,
+        startY: 148,
+        theme: 'grid',
+        headStyles: { fillColor: [99, 102, 241], textColor: 255, fontSize: 9 },
+        bodyStyles: { fontSize: 8, textColor: [55, 65, 81] },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+        columnStyles: {
+          0: { cellWidth: 70 },
+          1: { cellWidth: 25, halign: 'center' },
+          2: { cellWidth: 28, halign: 'center' },
+          3: { cellWidth: 65 }
+        },
+        didDrawCell: (data) => {
+          // Color-code the status column
+          if (data.column.index === 1 && data.section === 'body') {
+            const status = data.cell.raw as string;
+            if (status === 'Met') {
+              doc.setTextColor(34, 197, 94); // green
+            } else {
+              doc.setTextColor(239, 68, 68); // red
+            }
+          }
+        }
+      });
+
+      // Footer
+      const finalY = (doc as any).lastAutoTable.finalY || 200;
+      doc.setFontSize(8);
+      doc.setTextColor(107, 114, 128);
+      doc.text('Trial Compass Pro - Clinical Trial Eligibility Assessment', pageWidth / 2, finalY + 20, { align: 'center' });
+      doc.text('This report is for informational purposes only and does not constitute medical advice.', pageWidth / 2, finalY + 25, { align: 'center' });
+
+      // Save PDF
+      const fileName = `eligibility-report-${selectedProtocol.nctId}-${new Date().getTime()}.pdf`;
+      doc.save(fileName);
+
+      toast.success('PDF report exported successfully');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Failed to export PDF');
+    }
   };
 
   const treatments = ['Chemotherapy', 'Radiation', 'Immunotherapy', 'Targeted Therapy', 'Surgery', 'Hormone Therapy'];
@@ -876,83 +1012,273 @@ export default function EligibilityCheck() {
         </Card>
       )}
 
-      {/* Results */}
+      {/* Results - Modern Professional UI */}
       <AnimatePresence>
         {results && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
           >
-            <Card>
-              <CardHeader>
-                <CardTitle>Eligibility Results</CardTitle>
-                <CardDescription>
-                  Match analysis for {selectedProtocol?.nctId}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-6 border rounded-lg bg-accent/50">
+            {/* Header Card with Score */}
+            <Card className="border-2 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold mb-1">Overall Match Confidence</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Based on {results.criteria.length} eligibility criteria
-                    </p>
+                    <CardTitle className="text-2xl flex items-center gap-2">
+                      <Activity className="h-6 w-6 text-primary" />
+                      Eligibility Assessment Results
+                    </CardTitle>
+                    <CardDescription className="mt-2">
+                      Protocol: <span className="font-semibold text-foreground">{selectedProtocol?.nctId}</span> - {selectedProtocol?.title}
+                    </CardDescription>
                   </div>
-                  <Badge className={`${getConfidenceColor(results.overallConfidence)} text-2xl px-6 py-3`}>
-                    {results.overallConfidence}%
+                  <Badge variant="outline" className="px-4 py-2 text-sm">
+                    {new Date().toLocaleDateString()}
                   </Badge>
                 </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {/* Overall Score Card */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  {/* Score Circle */}
+                  <div className="flex items-center justify-center">
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                      className="relative w-40 h-40"
+                    >
+                      <svg className="w-40 h-40 transform -rotate-90">
+                        <circle
+                          cx="80"
+                          cy="80"
+                          r="70"
+                          stroke="currentColor"
+                          strokeWidth="12"
+                          fill="none"
+                          className="text-muted"
+                        />
+                        <motion.circle
+                          cx="80"
+                          cy="80"
+                          r="70"
+                          stroke="currentColor"
+                          strokeWidth="12"
+                          fill="none"
+                          strokeLinecap="round"
+                          className={
+                            results.overallConfidence >= 80 ? "text-green-500" :
+                            results.overallConfidence >= 50 ? "text-yellow-500" :
+                            "text-red-500"
+                          }
+                          initial={{ strokeDasharray: "439.8", strokeDashoffset: "439.8" }}
+                          animate={{ strokeDashoffset: 439.8 - (439.8 * results.overallConfidence / 100) }}
+                          transition={{ duration: 1.5, ease: "easeOut" }}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className={`text-4xl font-bold ${
+                          results.overallConfidence >= 80 ? "text-green-600" :
+                          results.overallConfidence >= 50 ? "text-yellow-600" :
+                          "text-red-600"
+                        }`}>
+                          {results.overallConfidence}%
+                        </span>
+                        <span className="text-xs text-muted-foreground mt-1">Match Score</span>
+                      </div>
+                    </motion.div>
+                  </div>
 
-                <Accordion type="multiple" className="w-full">
-                  {results.criteria.map((criterion: any) => (
-                    <AccordionItem key={criterion.id} value={criterion.id}>
-                      <AccordionTrigger>
-                        <div className="flex items-center justify-between w-full pr-4">
-                          <span className="text-left">{criterion.text}</span>
-                          <div className="flex items-center gap-2">
-                            <Badge className={getConfidenceColor(criterion.confidence)}>
-                              {criterion.confidence}%
-                            </Badge>
-                            <Badge variant={criterion.met ? 'default' : 'destructive'}>
-                              {criterion.met ? 'Met' : 'Not Met'}
-                            </Badge>
+                  {/* Statistics */}
+                  <div className="col-span-2 grid grid-cols-2 gap-4">
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="p-4 border rounded-lg bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <span className="text-sm font-medium text-green-900 dark:text-green-100">Criteria Met</span>
+                      </div>
+                      <p className="text-3xl font-bold text-green-700 dark:text-green-400">
+                        {results.criteria.filter((c: any) => c.met).length}
+                      </p>
+                      <p className="text-xs text-green-600 dark:text-green-500 mt-1">
+                        Eligible for {Math.round((results.criteria.filter((c: any) => c.met).length / results.criteria.length) * 100)}% of criteria
+                      </p>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="p-4 border rounded-lg bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <XCircle className="h-5 w-5 text-red-600" />
+                        <span className="text-sm font-medium text-red-900 dark:text-red-100">Not Met</span>
+                      </div>
+                      <p className="text-3xl font-bold text-red-700 dark:text-red-400">
+                        {results.criteria.filter((c: any) => !c.met).length}
+                      </p>
+                      <p className="text-xs text-red-600 dark:text-red-500 mt-1">
+                        Requires attention or waiver
+                      </p>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 }}
+                      className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="h-5 w-5 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Total Criteria</span>
+                      </div>
+                      <p className="text-3xl font-bold text-blue-700 dark:text-blue-400">
+                        {results.criteria.length}
+                      </p>
+                      <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
+                        Evaluated criteria
+                      </p>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.5 }}
+                      className="p-4 border rounded-lg bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-900"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Activity className="h-5 w-5 text-purple-600" />
+                        <span className="text-sm font-medium text-purple-900 dark:text-purple-100">Recommendation</span>
+                      </div>
+                      <p className="text-lg font-bold text-purple-700 dark:text-purple-400">
+                        {results.overallConfidence >= 80 ? "Highly Eligible" :
+                         results.overallConfidence >= 50 ? "Potentially Eligible" :
+                         "Review Required"}
+                      </p>
+                      <p className="text-xs text-purple-600 dark:text-purple-500 mt-1">
+                        Based on analysis
+                      </p>
+                    </motion.div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Criteria Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-primary" />
+                  Detailed Criteria Analysis
+                </CardTitle>
+                <CardDescription>
+                  Individual criterion evaluation with confidence scores
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {results.criteria.map((criterion: any, index: number) => (
+                    <motion.div
+                      key={criterion.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className={`p-4 border rounded-lg transition-all hover:shadow-md ${
+                        criterion.met
+                          ? 'bg-green-50 dark:bg-green-950/10 border-green-200 dark:border-green-900'
+                          : 'bg-red-50 dark:bg-red-950/10 border-red-200 dark:border-red-900'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            {criterion.met ? (
+                              <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                            )}
+                            <p className="font-medium text-sm">{criterion.text}</p>
+                          </div>
+                          <div className="ml-7 space-y-1">
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-semibold">Patient Value:</span> {criterion.patientValue || 'Not provided'}
+                            </p>
+                            {criterion.reasoning && (
+                              <p className="text-xs text-muted-foreground">
+                                <span className="font-semibold">Reasoning:</span> {criterion.reasoning}
+                              </p>
+                            )}
                           </div>
                         </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="pt-2 space-y-2">
-                          <p className="text-sm">
-                            <span className="font-medium">Patient Data:</span> {criterion.patientValue}
-                          </p>
+                        <div className="flex flex-col items-end gap-2">
+                          <Badge
+                            variant={criterion.met ? "default" : "destructive"}
+                            className="font-semibold"
+                          >
+                            {criterion.met ? "Met" : "Not Met"}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={`${
+                              criterion.confidence >= 80 ? "border-green-500 text-green-700" :
+                              criterion.confidence >= 50 ? "border-yellow-500 text-yellow-700" :
+                              "border-red-500 text-red-700"
+                            }`}
+                          >
+                            {criterion.confidence}% confidence
+                          </Badge>
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
+                      </div>
+                    </motion.div>
                   ))}
-                </Accordion>
+                </div>
+              </CardContent>
+            </Card>
 
-                <div className="flex gap-3">
+            {/* Action Buttons */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Button
                     variant="default"
-                    className="flex-1"
+                    size="lg"
                     onClick={handleCreateMatch}
                     disabled={isCreatingMatch}
+                    className="w-full"
                   >
                     {isCreatingMatch ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                         Creating Match...
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        <CheckCircle2 className="mr-2 h-5 w-5" />
                         Create Match for Review
                       </>
                     )}
                   </Button>
+
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    size="lg"
+                    onClick={handleExportPDF}
+                    className="w-full"
+                  >
+                    <FileDown className="mr-2 h-5 w-5" />
+                    Export PDF Report
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="lg"
                     onClick={() => {
                       setResults(null);
                       setPatientData({
@@ -988,6 +1314,7 @@ export default function EligibilityCheck() {
                         imagingFindings: '',
                       });
                     }}
+                    className="w-full"
                   >
                     Check Another Patient
                   </Button>

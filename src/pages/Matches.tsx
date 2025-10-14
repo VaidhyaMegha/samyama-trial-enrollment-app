@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Clock, FileText, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, FileText, Loader2, UserCheck, Shield } from 'lucide-react';
 import { matchesAPI } from '@/services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -19,8 +19,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Matches() {
+  const { user } = useAuth();
   const [matches, setMatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending');
@@ -79,8 +81,15 @@ export default function Matches() {
 
     setIsReviewing(true);
     try {
-      await matchesAPI.review(selectedMatch.id, reviewAction, reviewNotes);
-      toast.success(`Match ${reviewAction}d successfully`);
+      const result = await matchesAPI.review(
+        selectedMatch.id,
+        reviewAction,
+        reviewNotes,
+        selectedMatch.status  // Pass current status for 2-level workflow
+      );
+
+      // Show workflow-aware success message
+      toast.success(result.data.message || `Match ${reviewAction}d successfully`);
 
       // Reload matches to get fresh data from backend
       await loadMatches();
@@ -91,7 +100,7 @@ export default function Matches() {
       setReviewNotes('');
     } catch (error: any) {
       console.error('Error reviewing match:', error);
-      toast.error(error.response?.data?.message || 'Failed to review match');
+      toast.error(error.message || error.response?.data?.message || 'Failed to review match');
     } finally {
       setIsReviewing(false);
     }
@@ -107,6 +116,8 @@ export default function Matches() {
     switch (status) {
       case 'pending':
         return 'default';
+      case 'pending_pi_approval':
+        return 'secondary';
       case 'approved':
         return 'outline';
       case 'rejected':
@@ -120,12 +131,29 @@ export default function Matches() {
     switch (status) {
       case 'pending':
         return <Clock className="h-4 w-4" />;
+      case 'pending_pi_approval':
+        return <UserCheck className="h-4 w-4" />;
       case 'approved':
         return <CheckCircle2 className="h-4 w-4" />;
       case 'rejected':
         return <XCircle className="h-4 w-4" />;
       default:
         return null;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'Pending CRC Review';
+      case 'pending_pi_approval':
+        return 'Pending PI Approval';
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return status;
     }
   };
 
@@ -144,14 +172,21 @@ export default function Matches() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="pending">
-            Pending ({matches.filter(m => m.status === 'pending').length})
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="pending" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            CRC Review ({matches.filter(m => m.status === 'pending').length})
           </TabsTrigger>
-          <TabsTrigger value="approved">
+          <TabsTrigger value="pending_pi_approval" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            PI Approval ({matches.filter(m => m.status === 'pending_pi_approval').length})
+          </TabsTrigger>
+          <TabsTrigger value="approved" className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4" />
             Approved ({matches.filter(m => m.status === 'approved').length})
           </TabsTrigger>
-          <TabsTrigger value="rejected">
+          <TabsTrigger value="rejected" className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
             Rejected ({matches.filter(m => m.status === 'rejected').length})
           </TabsTrigger>
           <TabsTrigger value="all">All ({matches.length})</TabsTrigger>
@@ -196,7 +231,7 @@ export default function Matches() {
                               className="flex items-center gap-1"
                             >
                               {getStatusIcon(match.status)}
-                              {match.status.charAt(0).toUpperCase() + match.status.slice(1)}
+                              {getStatusLabel(match.status)}
                             </Badge>
                           </div>
                           <CardDescription>
@@ -231,39 +266,98 @@ export default function Matches() {
                           </div>
                         </div>
 
+                        {/* CRC Review Stage - Only CRCs can approve/reject at this stage */}
                         {match.status === 'pending' && (
-                          <div className="flex gap-3 pt-4">
-                            <Button
-                              variant="default"
-                              className="flex-1"
-                              onClick={() => handleReviewClick(match, 'approve')}
-                            >
-                              <CheckCircle2 className="mr-2 h-4 w-4" />
-                              Approve Match
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              className="flex-1"
-                              onClick={() => handleReviewClick(match, 'reject')}
-                            >
-                              <XCircle className="mr-2 h-4 w-4" />
-                              Reject Match
-                            </Button>
+                          <div className="space-y-3 pt-4">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <p className="text-sm text-blue-800 flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                <strong>CRC Review Required:</strong> Review this match and approve to send to PI for final approval.
+                              </p>
+                            </div>
+                            {user?.role === 'CRC' || user?.role === 'StudyAdmin' ? (
+                              <div className="flex gap-3">
+                                <Button
+                                  variant="default"
+                                  className="flex-1"
+                                  onClick={() => handleReviewClick(match, 'approve')}
+                                >
+                                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                                  Approve & Send to PI
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  className="flex-1"
+                                  onClick={() => handleReviewClick(match, 'reject')}
+                                >
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Reject Match
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                <p className="text-sm text-gray-600 text-center">
+                                  Only CRC can review matches at this stage.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
 
+                        {/* PI Approval Stage - Only PIs can approve/reject at this stage */}
+                        {match.status === 'pending_pi_approval' && (
+                          <div className="space-y-3 pt-4">
+                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                              <p className="text-sm text-purple-800 flex items-center gap-2">
+                                <Shield className="h-4 w-4" />
+                                <strong>PI Approval Required:</strong> CRC has approved. Final PI approval needed for enrollment.
+                              </p>
+                            </div>
+                            {user?.role === 'PI' || user?.role === 'StudyAdmin' ? (
+                              <div className="flex gap-3">
+                                <Button
+                                  variant="default"
+                                  className="flex-1"
+                                  onClick={() => handleReviewClick(match, 'approve')}
+                                >
+                                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                                  Final Approval (PI)
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  className="flex-1"
+                                  onClick={() => handleReviewClick(match, 'reject')}
+                                >
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Reject Match
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                <p className="text-sm text-gray-600 text-center">
+                                  Only Principal Investigator (PI) can provide final approval.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Approved State */}
                         {match.status === 'approved' && (
                           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <p className="text-sm text-green-800">
-                              ✓ This match has been approved and the patient can proceed with enrollment.
+                            <p className="text-sm text-green-800 flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <strong>Fully Approved:</strong> This match has completed 2-level approval (CRC + PI) and patient can proceed with enrollment.
                             </p>
                           </div>
                         )}
 
+                        {/* Rejected State */}
                         {match.status === 'rejected' && (
                           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                            <p className="text-sm text-red-800">
-                              ✗ This match has been rejected and will not proceed to enrollment.
+                            <p className="text-sm text-red-800 flex items-center gap-2">
+                              <XCircle className="h-4 w-4" />
+                              <strong>Rejected:</strong> This match has been rejected and will not proceed to enrollment.
                             </p>
                           </div>
                         )}
