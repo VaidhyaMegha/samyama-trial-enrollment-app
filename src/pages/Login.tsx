@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -32,10 +32,12 @@ export default function Login() {
     resolver: zodResolver(loginSchema),
   });
 
-  if (isAuthenticated) {
-    navigate('/dashboard');
-    return null;
-  }
+  // Redirect if already authenticated - use useEffect to avoid rendering errors
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
