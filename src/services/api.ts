@@ -292,32 +292,79 @@ export const eligibilityAPI = {
         console.log('Created temporary patient:', actualPatientId);
       }
 
-      // Step 1: Parse criteria from protocol
-      console.log('Parsing criteria for protocol:', protocolId);
-      const parseCriteriaResponse = await api.post('/parse-criteria', {
-        trial_id: protocolId,
-        criteria_text: `Inclusion Criteria based on protocol ${protocolId}` // This would come from protocol document
-      });
+      // Step 1: Fetch cached parsed criteria from DynamoDB
+      // The criteria should already be parsed and cached when the protocol was uploaded
+      console.log('Fetching cached parsed criteria for protocol:', protocolId);
+      const getCriteriaResponse = await api.get(`/protocols/${protocolId}/criteria`);
 
-      if (!parseCriteriaResponse.data.success) {
-        throw new Error('Failed to parse criteria');
+      let parsedCriteria;
+      if (getCriteriaResponse.data.success && getCriteriaResponse.data.parsed_criteria) {
+        // Use cached criteria
+        parsedCriteria = getCriteriaResponse.data.parsed_criteria;
+        console.log('Using cached parsed criteria');
+      } else {
+        // If not cached, we need to parse first (shouldn't happen if protocol was processed correctly)
+        console.warn('No cached criteria found, this indicates the protocol was not fully processed');
+        throw new Error('Protocol criteria not found. Please ensure the protocol has been properly uploaded and processed.');
       }
 
-      const parsedCriteria = parseCriteriaResponse.data.parsed_criteria;
-      console.log('Parsed criteria:', parsedCriteria);
+      // Step 2: Transform cached criteria to Lambda-expected format
+      // Lambda expects: { criteria: [{type: "inclusion", ...}, {type: "exclusion", ...}] }
+      // Cache can have two formats:
+      // Format 1 (new): { inclusion: [...], exclusion: [...] } - simple format with {type, text}
+      // Format 2 (proper): array of structured criteria with {category, attribute, operator, value, ...}
 
-      // Step 2: Check eligibility against HealthLake patient data
+      let flattenedCriteria: any[] = [];
+
+      // Check if parsedCriteria is already an array (proper format)
+      if (Array.isArray(parsedCriteria)) {
+        flattenedCriteria = parsedCriteria;
+      }
+      // Check if it has inclusion/exclusion keys (simple format)
+      else if (parsedCriteria.inclusion || parsedCriteria.exclusion) {
+        // Validate that criteria have required fields (category, attribute, operator, value)
+        const validateCriterion = (criterion: any) => {
+          return criterion.category && criterion.attribute && criterion.operator;
+        };
+
+        if (parsedCriteria.inclusion && Array.isArray(parsedCriteria.inclusion)) {
+          parsedCriteria.inclusion.forEach((criterion: any) => {
+            if (!validateCriterion(criterion)) {
+              throw new Error(`Protocol "${protocolId}" has incomplete criteria format. The protocol needs to be reprocessed through the parse-criteria API. Please use a properly processed protocol or contact support.`);
+            }
+            flattenedCriteria.push({
+              ...criterion,
+              type: 'inclusion'
+            });
+          });
+        }
+
+        if (parsedCriteria.exclusion && Array.isArray(parsedCriteria.exclusion)) {
+          parsedCriteria.exclusion.forEach((criterion: any) => {
+            if (!validateCriterion(criterion)) {
+              throw new Error(`Protocol "${protocolId}" has incomplete criteria format. The protocol needs to be reprocessed through the parse-criteria API. Please use a properly processed protocol or contact support.`);
+            }
+            flattenedCriteria.push({
+              ...criterion,
+              type: 'exclusion'
+            });
+          });
+        }
+      } else {
+        throw new Error('Invalid parsed criteria format');
+      }
+
+      // Step 3: Check eligibility against HealthLake patient data
       console.log('Checking eligibility for patient:', actualPatientId);
       const checkResponse = await api.post('/check-criteria', {
         patient_id: actualPatientId,
-        criteria: parsedCriteria
+        criteria: flattenedCriteria
       });
 
-      if (!checkResponse.data.success) {
-        throw new Error('Failed to check eligibility');
-      }
-
-      const results = checkResponse.data.results || [];
+      // The response from /check-criteria (fhir_search Lambda) has this structure:
+      // { patient_id, eligible, results: [...], summary: {...} }
+      const responseBody = checkResponse.data;
+      const results = responseBody.results || [];
 
       // Calculate overall confidence
       const metCount = results.filter((r: any) => r.met).length;
@@ -330,12 +377,13 @@ export const eligibilityAPI = {
         data: {
           overallConfidence,
           patientId: actualPatientId,
+          eligible: responseBody.eligible,
           criteria: results.map((result: any, index: number) => ({
             id: `${index + 1}`,
             text: result.criterion?.description || result.criterion?.text || 'Unknown criterion',
             met: result.met,
             confidence: result.met ? 95 : 50,
-            patientValue: result.reason || result.details || 'No details available'
+            patientValue: result.reason || 'No details available'
           }))
         }
       };
@@ -347,6 +395,8 @@ export const eligibilityAPI = {
         throw new Error('Session expired. Please login again.');
       } else if (error.response?.status === 403) {
         throw new Error('You don\'t have permission to check eligibility.');
+      } else if (error.response?.status === 404) {
+        throw new Error('Protocol not found or criteria not cached. Please ensure the protocol has been uploaded and processed.');
       } else if (error.response?.status === 500) {
         throw new Error('Backend service error. Please try again later.');
       } else if (error.message === 'Network Error') {
@@ -496,24 +546,64 @@ export const matchesAPI = {
     }
   },
 
-  // Update match status (approve/reject)
-  review: async (matchId: string, action: 'approve' | 'reject', notes?: string) => {
+  // Update match status with 2-level approval workflow support
+  // When CRC approves from 'pending', it moves to 'pending_pi_approval'
+  // When PI approves from 'pending_pi_approval', it moves to 'approved'
+  // Any rejection at any stage moves to 'rejected'
+  review: async (matchId: string, action: 'approve' | 'reject', notes?: string, currentStatus?: string) => {
     try {
+      // Determine the target status based on action and current status
+      let targetStatus: string;
+
+      if (action === 'reject') {
+        targetStatus = 'rejected';
+      } else {
+        // For approve action, determine next stage
+        if (currentStatus === 'pending') {
+          // CRC approval: move to PI review
+          targetStatus = 'pending_pi_approval';
+        } else if (currentStatus === 'pending_pi_approval') {
+          // PI approval: final approval
+          targetStatus = 'approved';
+        } else {
+          // Fallback for backward compatibility
+          targetStatus = 'approved';
+        }
+      }
+
       const response = await api.put(`/matches/${matchId}`, {
-        status: action === 'approve' ? 'approved' : 'rejected',
+        status: targetStatus,
         notes: notes || '',
         reviewed_by: 'current_user'  // Would come from auth context
       });
 
+      const workflowStage = response.data.workflow_stage || targetStatus;
+      let message = '';
+
+      if (action === 'reject') {
+        message = 'Match rejected successfully';
+      } else if (workflowStage === 'pending_pi_approval') {
+        message = 'Match approved by CRC and sent to PI for final approval';
+      } else if (workflowStage === 'approved') {
+        message = 'Match fully approved - patient can proceed with enrollment';
+      } else {
+        message = `Match ${action}d successfully`;
+      }
+
       return {
         data: {
           success: response.data.success,
-          message: `Match ${action}d successfully`,
-          match: response.data.match
+          message,
+          match: response.data.match,
+          workflowStage
         }
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error reviewing match:', error);
+      // Check for invalid transition error from backend
+      if (error.response?.data?.error && error.response.data.error.includes('Invalid status transition')) {
+        throw new Error(error.response.data.error);
+      }
       throw error;
     }
   },
