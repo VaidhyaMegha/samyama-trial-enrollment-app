@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
-import { adminAPI } from '@/services/api';
+import { adminAPI, matchesAPI } from '@/services/api';
 
 export function PIDashboard() {
   const navigate = useNavigate();
@@ -28,6 +28,15 @@ export function PIDashboard() {
     queryFn: async () => {
       const response = await adminAPI.getPITrials();
       return response.data;
+    },
+  });
+
+  // Fetch all matches to calculate confidence distribution
+  const { data: allMatchesData } = useQuery({
+    queryKey: ['matches', 'all'],
+    queryFn: async () => {
+      const response = await matchesAPI.getAll();
+      return response.data || [];
     },
   });
 
@@ -67,12 +76,28 @@ export function PIDashboard() {
     },
   ];
 
-  // Mock confidence data (could be calculated from match scores in future)
-  const confidenceData = [
-    { name: 'High (≥80%)', value: 156, color: 'hsl(var(--success))' },
-    { name: 'Medium (50-79%)', value: 68, color: 'hsl(var(--warning))' },
-    { name: 'Low (<50%)', value: 23, color: 'hsl(var(--destructive))' },
-  ];
+  // Calculate real confidence distribution from all matches
+  const calculateConfidenceDistribution = () => {
+    if (!allMatchesData || allMatchesData.length === 0) {
+      return [
+        { name: 'High (≥80%)', value: 0, color: 'hsl(var(--success))' },
+        { name: 'Medium (50-79%)', value: 0, color: 'hsl(var(--warning))' },
+        { name: 'Low (<50%)', value: 0, color: 'hsl(var(--destructive))' },
+      ];
+    }
+
+    const high = allMatchesData.filter((m: any) => m.match_score >= 80).length;
+    const medium = allMatchesData.filter((m: any) => m.match_score >= 50 && m.match_score < 80).length;
+    const low = allMatchesData.filter((m: any) => m.match_score < 50).length;
+
+    return [
+      { name: 'High (≥80%)', value: high, color: 'hsl(var(--success))' },
+      { name: 'Medium (50-79%)', value: medium, color: 'hsl(var(--warning))' },
+      { name: 'Low (<50%)', value: low, color: 'hsl(var(--destructive))' },
+    ];
+  };
+
+  const confidenceData = calculateConfidenceDistribution();
 
   // Use real trials data (top 3)
   const activeTrials = (trialsData || []).slice(0, 3);
