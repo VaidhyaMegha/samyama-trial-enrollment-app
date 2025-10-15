@@ -51,7 +51,6 @@ export default function EligibilityCheck() {
         ...patientData,
         age: patient.age?.toString() || '',
         gender: patient.gender || '',
-        birthDate: patient.birthDate || '',
       });
 
       toast.success(`Patient ${patient.name} loaded`);
@@ -86,7 +85,6 @@ export default function EligibilityCheck() {
     // 1. Patient - Demographics
     age: '',
     gender: '',
-    birthDate: '',
 
     // 2. Condition - Diagnoses
     conditions: [] as string[],
@@ -482,7 +480,7 @@ export default function EligibilityCheck() {
                 {/* 1. Patient Demographics */}
                 <div className="space-y-2">
                   <h3 className="font-semibold text-sm text-muted-foreground">1. Patient Demographics</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="age">Age *</Label>
                       <Input
@@ -506,16 +504,6 @@ export default function EligibilityCheck() {
                           <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="birthDate">Birth Date</Label>
-                      <Input
-                        id="birthDate"
-                        type="date"
-                        value={patientData.birthDate}
-                        onChange={(e) => setPatientData({ ...patientData, birthDate: e.target.value })}
-                      />
                     </div>
                   </div>
                 </div>
@@ -1284,7 +1272,6 @@ export default function EligibilityCheck() {
                       setPatientData({
                         age: '',
                         gender: '',
-                        birthDate: '',
                         conditions: [],
                         cancerType: '',
                         stage: '',
