@@ -1,10 +1,12 @@
-import { 
-  LayoutDashboard, 
-  FileText, 
-  ClipboardCheck, 
-  Users, 
+import {
+  LayoutDashboard,
+  FileText,
+  ClipboardCheck,
+  Users,
   Settings,
-  Activity
+  Activity,
+  Terminal,
+  FileSearch
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -40,7 +42,9 @@ export function AppSidebar() {
       ],
       StudyAdmin: [
         { title: 'Protocols', url: '/protocols', icon: FileText },
-        { title: 'Analytics', url: '/analytics', icon: Activity },
+        { title: 'Processing Monitor', url: '/admin/processing', icon: Activity },
+        { title: 'Audit Trail', url: '/admin/audit', icon: FileSearch },
+        { title: 'System Logs', url: '/admin/logs', icon: Terminal },
       ],
       PI: [
         { title: 'Enrollment', url: '/enrollment', icon: ClipboardCheck },

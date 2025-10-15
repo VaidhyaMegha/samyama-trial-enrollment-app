@@ -15,6 +15,10 @@ import Protocols from "./pages/Protocols";
 import Enrollment from "./pages/Enrollment";
 import Matches from "./pages/Matches";
 import Patients from "./pages/Patients";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import ProcessingMonitor from "./pages/admin/ProcessingMonitor";
+import AuditTrail from "./pages/admin/AuditTrail";
+import SystemLogs from "./pages/admin/SystemLogs";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +86,38 @@ const App = () => (
                 element={
                   <AppLayout>
                     <Patients />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <AppLayout>
+                    <AdminDashboard />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/admin/processing"
+                element={
+                  <AppLayout>
+                    <ProcessingMonitor />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/admin/audit"
+                element={
+                  <AppLayout>
+                    <AuditTrail />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/admin/logs"
+                element={
+                  <AppLayout>
+                    <SystemLogs />
                   </AppLayout>
                 }
               />

@@ -87,23 +87,72 @@ export const protocolsAPI = {
     }
   },
   
-  upload: async (file: File) => {
-    // Mock upload
-    const formData = new FormData();
-    formData.append('file', file);
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          data: {
-            id: Math.random().toString(36).substr(2, 9),
-            status: 'processing',
-            message: 'Protocol uploaded successfully',
-          },
-        });
-      }, 2000);
-    });
+  upload: async (file: File, trialId?: string) => {
+    try {
+      // Step 1: Get pre-signed S3 URL from backend
+      const uploadUrlResponse = await api.post('/protocols/upload-url', {
+        filename: file.name,
+        content_type: file.type,
+        trial_id: trialId
+      });
+
+      const { upload_url, s3_key, trial_id: generatedTrialId } = uploadUrlResponse.data;
+
+      // Step 2: Upload file directly to S3 using pre-signed URL
+      // IMPORTANT: Use fetch instead of axios to avoid CORS preflight issues
+      // Pre-signed URLs have all auth in the URL, so we don't need Authorization headers
+      const uploadResponse = await fetch(upload_url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`S3 upload failed: ${uploadResponse.statusText}`);
+      }
+
+      // Step 3: Return trial ID for status polling
+      return {
+        data: {
+          id: generatedTrialId,
+          trialId: generatedTrialId,
+          s3_key,
+          status: 'processing',
+          message: 'Protocol uploaded successfully and processing started',
+        },
+      };
+    } catch (error: any) {
+      console.error('Upload failed:', error);
+      throw new Error(error.message || error.response?.data?.error || 'Failed to upload protocol');
+    }
   },
-  
+
+  getStatus: async (trialId: string) => {
+    try {
+      const response = await api.get(`/protocols/${trialId}/status`);
+      return {
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Error getting protocol status:', error);
+      throw error;
+    }
+  },
+
+  get: async (trialId: string) => {
+    try {
+      const response = await api.get(`/protocols/${trialId}`);
+      return {
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Error getting protocol:', error);
+      throw error;
+    }
+  },
+
   search: async (query: string) => {
     try {
       const response = await api.post('/protocols/search', { query });
@@ -621,6 +670,126 @@ export const matchesAPI = {
       throw error;
     }
   },
+};
+
+// Admin API methods - StudyAdmin persona
+export const adminAPI = {
+  // Get admin dashboard metrics
+  getDashboard: async () => {
+    try {
+      const response = await api.get('/admin/dashboard');
+      return {
+        data: response.data,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error fetching admin dashboard:', error);
+      throw error;
+    }
+  },
+
+  // Get protocol processing status
+  getProcessingStatus: async () => {
+    try {
+      const response = await api.get('/admin/processing-status');
+      return {
+        data: response.data,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error fetching processing status:', error);
+      throw error;
+    }
+  },
+
+  // Get all trials with admin details
+  getTrials: async () => {
+    try {
+      const response = await api.get('/admin/trials');
+      return {
+        data: response.data.trials || [],
+        count: response.data.count || 0,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error fetching trials:', error);
+      throw error;
+    }
+  },
+
+  // Get audit trail with filters
+  getAuditTrail: async (params?: {
+    user?: string;
+    action?: string;
+    resource_type?: string;
+    start_date?: string;
+    end_date?: string;
+    limit?: number;
+  }) => {
+    try {
+      const response = await api.get('/admin/audit-trail', { params });
+      return {
+        data: response.data.events || [],
+        count: response.data.count || 0,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error fetching audit trail:', error);
+      throw error;
+    }
+  },
+
+  // Get system logs
+  getLogs: async (params?: {
+    log_group?: string;
+    start_time?: string;
+    end_time?: string;
+    filter_pattern?: string;
+    limit?: number;
+  }) => {
+    try {
+      const response = await api.get('/admin/logs', { params });
+      return {
+        data: response.data.logs || [],
+        count: response.data.logs?.length || 0,
+        nextToken: response.data.nextToken,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error fetching system logs:', error);
+      throw error;
+    }
+  },
+
+  // Reprocess a protocol
+  reprocessProtocol: async (trialId: string) => {
+    try {
+      const response = await api.post(`/admin/reprocess/${trialId}`);
+      return {
+        data: response.data,
+        success: true,
+        message: response.data.message || 'Protocol reprocessing initiated'
+      };
+    } catch (error) {
+      console.error('Error reprocessing protocol:', error);
+      throw error;
+    }
+  },
+
+  // Delete a protocol
+  deleteProtocol: async (trialId: string) => {
+    try {
+      const response = await api.delete(`/admin/trials/${trialId}`);
+      return {
+        data: response.data,
+        success: true,
+        message: response.data.message || 'Protocol deleted successfully'
+      };
+    } catch (error) {
+      console.error('Error deleting protocol:', error);
+      throw error;
+    }
+  }
 };
 
 export default api;
