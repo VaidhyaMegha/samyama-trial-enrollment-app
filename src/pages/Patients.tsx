@@ -25,6 +25,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// Common options for checkboxes
+const commonConditions = ['Diabetes', 'Hypertension', 'Asthma', 'COPD', 'Coronary Artery Disease', 'Heart Failure'];
+const commonMedications = ['Aspirin', 'Metformin', 'Atorvastatin', 'Lisinopril', 'Warfarin', 'Prednisone', 'Insulin', 'Levothyroxine'];
+const commonAllergies = ['Penicillin', 'Sulfa drugs', 'Aspirin', 'Latex', 'Iodine', 'Peanuts', 'Shellfish', 'Eggs'];
+const treatments = ['Chemotherapy', 'Radiation', 'Immunotherapy', 'Targeted Therapy', 'Surgery', 'Hormone Therapy'];
+const commonImmunizations = ['COVID-19', 'Influenza', 'Pneumococcal', 'Hepatitis B', 'MMR', 'HPV', 'Shingles', 'Tetanus'];
+const familyConditions = ['Cancer', 'Heart Disease', 'Diabetes', 'Hypertension', 'Stroke', "Alzheimer's", 'Kidney Disease', 'Mental Health'];
+const diagnosticReportTypes = ['CT Scan', 'MRI', 'PET Scan', 'X-Ray', 'Ultrasound', 'Blood Test', 'Biopsy', 'EKG'];
 
 export default function Patients() {
   const navigate = useNavigate();
@@ -38,13 +50,58 @@ export default function Patients() {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [patientDetails, setPatientDetails] = useState<any>(null);
 
-  // Form state for creating patient
+  // Form state for creating patient - All 11 FHIR Resources
   const [newPatient, setNewPatient] = useState({
+    // 1. Patient - Demographics
     given_name: '',
     family_name: '',
     gender: 'unknown',
     birth_date: '',
+
+    // 2. Condition - Diagnoses
+    conditions: [] as string[],
+    cancer_type: '',
+    cancer_stage: '',
+
+    // 3. Observation - Lab Values & Performance Status
+    lab_values: {
+      hemoglobin: '',
+      platelets: '',
+      creatinine: '',
+      alt: '',
+      ast: '',
+      wbc: '',
+      hba1c: '',
+      bilirubin: '',
+    },
     ecog_status: '',
+    karnofsky_score: '',
+
+    // 4. MedicationStatement - Current Medications
+    medications: [] as string[],
+
+    // 5. AllergyIntolerance - Allergies
+    allergies: [] as string[],
+
+    // 6. Procedure - Prior Treatments/Procedures
+    prior_treatments: [] as string[],
+
+    // 7. Immunization - Vaccination History
+    immunizations: [] as string[],
+
+    // 8. FamilyMemberHistory - Family History
+    family_history: [] as string[],
+
+    // 9. Encounter - Visit History
+    encounter_type: '',
+    last_visit_date: '',
+
+    // 10. DiagnosticReport - Reports
+    diagnostic_reports: [] as string[],
+    imaging_findings: '',
+
+    // 11. CarePlan - Active Care Plans
+    care_plan_notes: '',
   });
 
   useEffect(() => {
@@ -97,16 +154,74 @@ export default function Patients() {
 
     setIsCreating(true);
     try {
+      // Build comprehensive patient data with all 11 FHIR resources
       const patientData: any = {
+        // 1. Patient - Demographics
         given_name: newPatient.given_name,
         family_name: newPatient.family_name,
         gender: newPatient.gender,
         birth_date: newPatient.birth_date,
       };
 
-      // Add ECOG status if provided
+      // 2. Condition - Diagnoses
+      if (newPatient.conditions.length > 0 || newPatient.cancer_type || newPatient.cancer_stage) {
+        patientData.conditions = newPatient.conditions;
+        if (newPatient.cancer_type) patientData.cancer_type = newPatient.cancer_type;
+        if (newPatient.cancer_stage) patientData.cancer_stage = newPatient.cancer_stage;
+      }
+
+      // 3. Observation - Lab Values & Performance Status
+      const hasLabValues = Object.values(newPatient.lab_values).some(v => v !== '');
+      if (hasLabValues) {
+        patientData.lab_values = newPatient.lab_values;
+      }
       if (newPatient.ecog_status) {
         patientData.ecog_status = parseInt(newPatient.ecog_status);
+      }
+      if (newPatient.karnofsky_score) {
+        patientData.karnofsky_score = parseInt(newPatient.karnofsky_score);
+      }
+
+      // 4. MedicationStatement
+      if (newPatient.medications.length > 0) {
+        patientData.medications = newPatient.medications;
+      }
+
+      // 5. AllergyIntolerance
+      if (newPatient.allergies.length > 0) {
+        patientData.allergies = newPatient.allergies;
+      }
+
+      // 6. Procedure
+      if (newPatient.prior_treatments.length > 0) {
+        patientData.prior_treatments = newPatient.prior_treatments;
+      }
+
+      // 7. Immunization
+      if (newPatient.immunizations.length > 0) {
+        patientData.immunizations = newPatient.immunizations;
+      }
+
+      // 8. FamilyMemberHistory
+      if (newPatient.family_history.length > 0) {
+        patientData.family_history = newPatient.family_history;
+      }
+
+      // 9. Encounter
+      if (newPatient.encounter_type || newPatient.last_visit_date) {
+        if (newPatient.encounter_type) patientData.encounter_type = newPatient.encounter_type;
+        if (newPatient.last_visit_date) patientData.last_visit_date = newPatient.last_visit_date;
+      }
+
+      // 10. DiagnosticReport
+      if (newPatient.diagnostic_reports.length > 0 || newPatient.imaging_findings) {
+        if (newPatient.diagnostic_reports.length > 0) patientData.diagnostic_reports = newPatient.diagnostic_reports;
+        if (newPatient.imaging_findings) patientData.imaging_findings = newPatient.imaging_findings;
+      }
+
+      // 11. CarePlan
+      if (newPatient.care_plan_notes) {
+        patientData.care_plan_notes = newPatient.care_plan_notes;
       }
 
       const response = await patientsAPI.create(patientData);
@@ -115,13 +230,58 @@ export default function Patients() {
         toast.success(`Patient created successfully! ID: ${response.patientId}`);
         toast.success(`Created ${response.createdResources.length} FHIR resources`);
 
-        // Reset form
+        // Reset form to initial state
         setNewPatient({
+          // 1. Patient - Demographics
           given_name: '',
           family_name: '',
           gender: 'unknown',
           birth_date: '',
+
+          // 2. Condition - Diagnoses
+          conditions: [],
+          cancer_type: '',
+          cancer_stage: '',
+
+          // 3. Observation - Lab Values & Performance Status
+          lab_values: {
+            hemoglobin: '',
+            platelets: '',
+            creatinine: '',
+            alt: '',
+            ast: '',
+            wbc: '',
+            hba1c: '',
+            bilirubin: '',
+          },
           ecog_status: '',
+          karnofsky_score: '',
+
+          // 4. MedicationStatement - Current Medications
+          medications: [],
+
+          // 5. AllergyIntolerance - Allergies
+          allergies: [],
+
+          // 6. Procedure - Prior Treatments/Procedures
+          prior_treatments: [],
+
+          // 7. Immunization - Vaccination History
+          immunizations: [],
+
+          // 8. FamilyMemberHistory - Family History
+          family_history: [],
+
+          // 9. Encounter - Visit History
+          encounter_type: '',
+          last_visit_date: '',
+
+          // 10. DiagnosticReport - Reports
+          diagnostic_reports: [],
+          imaging_findings: '',
+
+          // 11. CarePlan - Active Care Plans
+          care_plan_notes: '',
         });
 
         // Close dialog
@@ -158,15 +318,35 @@ export default function Patients() {
     }
   };
 
-  const handleCheckEligibility = (patient: any) => {
-    // Navigate to eligibility check page with patient data pre-filled
-    navigate('/eligibility-check', {
-      state: {
-        patientId: patient.id,
-        patientData: patient
-      }
-    });
-    toast.info('Redirecting to Eligibility Check...');
+  const handleCheckEligibility = async (patient: any) => {
+    toast.info('Loading complete patient data...');
+
+    try {
+      // Fetch full patient details with all FHIR resources from HealthLake
+      const response = await patientsAPI.getById(patient.id);
+      const fullPatientData = response.data;
+
+      // Navigate to eligibility check page with complete patient data
+      navigate('/eligibility-check', {
+        state: {
+          patientId: patient.id,
+          fullPatientData: fullPatientData
+        }
+      });
+
+      toast.success(`Patient ${patient.name} data loaded successfully`);
+    } catch (error: any) {
+      console.error('Error loading patient details:', error);
+      toast.error('Failed to load complete patient data');
+
+      // Fallback: navigate with basic patient data
+      navigate('/eligibility-check', {
+        state: {
+          patientId: patient.id,
+          patientData: patient
+        }
+      });
+    }
   };
 
   const filteredPatients = patients.filter(patient =>
@@ -195,88 +375,502 @@ export default function Patients() {
               Create Patient
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <UserPlus className="h-5 w-5" />
                 Create New Patient
               </DialogTitle>
               <DialogDescription>
-                Create a new patient record in AWS HealthLake. This will create the patient with basic demographics.
+                Create a comprehensive patient record with all FHIR resources in AWS HealthLake
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="given_name">First Name *</Label>
-                  <Input
-                    id="given_name"
-                    value={newPatient.given_name}
-                    onChange={(e) => setNewPatient({ ...newPatient, given_name: e.target.value })}
-                    placeholder="John"
-                  />
-                </div>
+              <Accordion type="multiple" defaultValue={["demographics"]} className="w-full">
+                {/* 1. Demographics */}
+                <AccordionItem value="demographics">
+                  <AccordionTrigger className="text-base font-semibold">
+                    1. Patient Demographics *
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="given_name">First Name *</Label>
+                        <Input
+                          id="given_name"
+                          value={newPatient.given_name}
+                          onChange={(e) => setNewPatient({ ...newPatient, given_name: e.target.value })}
+                          placeholder="John"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="family_name">Last Name *</Label>
+                        <Input
+                          id="family_name"
+                          value={newPatient.family_name}
+                          onChange={(e) => setNewPatient({ ...newPatient, family_name: e.target.value })}
+                          placeholder="Doe"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="birth_date">Birth Date *</Label>
+                        <Input
+                          id="birth_date"
+                          type="date"
+                          value={newPatient.birth_date}
+                          onChange={(e) => setNewPatient({ ...newPatient, birth_date: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gender">Gender</Label>
+                        <Select value={newPatient.gender} onValueChange={(value) => setNewPatient({ ...newPatient, gender: value })}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="unknown">Unknown</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-                <div className="space-y-2">
-                  <Label htmlFor="family_name">Last Name *</Label>
-                  <Input
-                    id="family_name"
-                    value={newPatient.family_name}
-                    onChange={(e) => setNewPatient({ ...newPatient, family_name: e.target.value })}
-                    placeholder="Doe"
-                  />
-                </div>
-              </div>
+                {/* 2. Conditions */}
+                <AccordionItem value="conditions">
+                  <AccordionTrigger className="text-base font-semibold">
+                    2. Conditions / Diagnoses
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cancer_type">Cancer Type (if applicable)</Label>
+                        <Input
+                          id="cancer_type"
+                          value={newPatient.cancer_type}
+                          onChange={(e) => setNewPatient({ ...newPatient, cancer_type: e.target.value })}
+                          placeholder="e.g., Non-Small Cell Lung Cancer"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cancer_stage">Cancer Stage (if applicable)</Label>
+                        <Input
+                          id="cancer_stage"
+                          value={newPatient.cancer_stage}
+                          onChange={(e) => setNewPatient({ ...newPatient, cancer_stage: e.target.value })}
+                          placeholder="e.g., Stage IIIB"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Common Conditions</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {commonConditions.map((condition) => (
+                          <div key={condition} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`condition-${condition}`}
+                              checked={newPatient.conditions.includes(condition)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setNewPatient({ ...newPatient, conditions: [...newPatient.conditions, condition] });
+                                } else {
+                                  setNewPatient({ ...newPatient, conditions: newPatient.conditions.filter(c => c !== condition) });
+                                }
+                              }}
+                            />
+                            <label htmlFor={`condition-${condition}`} className="text-sm cursor-pointer">
+                              {condition}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="birth_date">Birth Date *</Label>
-                  <Input
-                    id="birth_date"
-                    type="date"
-                    value={newPatient.birth_date}
-                    onChange={(e) => setNewPatient({ ...newPatient, birth_date: e.target.value })}
-                  />
-                </div>
+                {/* 3. Lab Values & Performance Status */}
+                <AccordionItem value="observations">
+                  <AccordionTrigger className="text-base font-semibold">
+                    3. Lab Values & Performance Status
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="hemoglobin">Hemoglobin (g/dL)</Label>
+                        <Input
+                          id="hemoglobin"
+                          type="number"
+                          step="0.1"
+                          value={newPatient.lab_values.hemoglobin}
+                          onChange={(e) => setNewPatient({ ...newPatient, lab_values: { ...newPatient.lab_values, hemoglobin: e.target.value } })}
+                          placeholder="e.g., 12.5"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="platelets">Platelets (x1000/μL)</Label>
+                        <Input
+                          id="platelets"
+                          type="number"
+                          value={newPatient.lab_values.platelets}
+                          onChange={(e) => setNewPatient({ ...newPatient, lab_values: { ...newPatient.lab_values, platelets: e.target.value } })}
+                          placeholder="e.g., 250"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="wbc">WBC (x1000/μL)</Label>
+                        <Input
+                          id="wbc"
+                          type="number"
+                          step="0.1"
+                          value={newPatient.lab_values.wbc}
+                          onChange={(e) => setNewPatient({ ...newPatient, lab_values: { ...newPatient.lab_values, wbc: e.target.value } })}
+                          placeholder="e.g., 7.5"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="creatinine">Creatinine (mg/dL)</Label>
+                        <Input
+                          id="creatinine"
+                          type="number"
+                          step="0.1"
+                          value={newPatient.lab_values.creatinine}
+                          onChange={(e) => setNewPatient({ ...newPatient, lab_values: { ...newPatient.lab_values, creatinine: e.target.value } })}
+                          placeholder="e.g., 1.0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="alt">ALT (U/L)</Label>
+                        <Input
+                          id="alt"
+                          type="number"
+                          value={newPatient.lab_values.alt}
+                          onChange={(e) => setNewPatient({ ...newPatient, lab_values: { ...newPatient.lab_values, alt: e.target.value } })}
+                          placeholder="e.g., 25"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ast">AST (U/L)</Label>
+                        <Input
+                          id="ast"
+                          type="number"
+                          value={newPatient.lab_values.ast}
+                          onChange={(e) => setNewPatient({ ...newPatient, lab_values: { ...newPatient.lab_values, ast: e.target.value } })}
+                          placeholder="e.g., 22"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="hba1c">HbA1c (%)</Label>
+                        <Input
+                          id="hba1c"
+                          type="number"
+                          step="0.1"
+                          value={newPatient.lab_values.hba1c}
+                          onChange={(e) => setNewPatient({ ...newPatient, lab_values: { ...newPatient.lab_values, hba1c: e.target.value } })}
+                          placeholder="e.g., 5.7"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bilirubin">Bilirubin (mg/dL)</Label>
+                        <Input
+                          id="bilirubin"
+                          type="number"
+                          step="0.1"
+                          value={newPatient.lab_values.bilirubin}
+                          onChange={(e) => setNewPatient({ ...newPatient, lab_values: { ...newPatient.lab_values, bilirubin: e.target.value } })}
+                          placeholder="e.g., 0.8"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="ecog_status">ECOG Performance Status</Label>
+                        <Select value={newPatient.ecog_status} onValueChange={(value) => setNewPatient({ ...newPatient, ecog_status: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select ECOG status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">0 - Fully active</SelectItem>
+                            <SelectItem value="1">1 - Restricted in strenuous activity</SelectItem>
+                            <SelectItem value="2">2 - Ambulatory, capable of self-care</SelectItem>
+                            <SelectItem value="3">3 - Limited self-care</SelectItem>
+                            <SelectItem value="4">4 - Completely disabled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="karnofsky_score">Karnofsky Score (%)</Label>
+                        <Input
+                          id="karnofsky_score"
+                          type="number"
+                          value={newPatient.karnofsky_score}
+                          onChange={(e) => setNewPatient({ ...newPatient, karnofsky_score: e.target.value })}
+                          placeholder="e.g., 80"
+                        />
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-                <div className="space-y-2">
-                  <Label htmlFor="gender">Gender</Label>
-                  <Select value={newPatient.gender} onValueChange={(value) => setNewPatient({ ...newPatient, gender: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                      <SelectItem value="unknown">Unknown</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                {/* 4. Medications */}
+                <AccordionItem value="medications">
+                  <AccordionTrigger className="text-base font-semibold">
+                    4. Current Medications
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Select Current Medications</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {commonMedications.map((medication) => (
+                          <div key={medication} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`medication-${medication}`}
+                              checked={newPatient.medications.includes(medication)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setNewPatient({ ...newPatient, medications: [...newPatient.medications, medication] });
+                                } else {
+                                  setNewPatient({ ...newPatient, medications: newPatient.medications.filter(m => m !== medication) });
+                                }
+                              }}
+                            />
+                            <label htmlFor={`medication-${medication}`} className="text-sm cursor-pointer">
+                              {medication}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-              <div className="space-y-2">
-                <Label htmlFor="ecog_status">ECOG Performance Status (Optional)</Label>
-                <Select value={newPatient.ecog_status} onValueChange={(value) => setNewPatient({ ...newPatient, ecog_status: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select ECOG status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">0 - Fully active</SelectItem>
-                    <SelectItem value="1">1 - Restricted in strenuous activity</SelectItem>
-                    <SelectItem value="2">2 - Ambulatory, capable of self-care</SelectItem>
-                    <SelectItem value="3">3 - Limited self-care</SelectItem>
-                    <SelectItem value="4">4 - Completely disabled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                {/* 5. Allergies */}
+                <AccordionItem value="allergies">
+                  <AccordionTrigger className="text-base font-semibold">
+                    5. Allergies & Intolerances
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Select Known Allergies</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {commonAllergies.map((allergy) => (
+                          <div key={allergy} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`allergy-${allergy}`}
+                              checked={newPatient.allergies.includes(allergy)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setNewPatient({ ...newPatient, allergies: [...newPatient.allergies, allergy] });
+                                } else {
+                                  setNewPatient({ ...newPatient, allergies: newPatient.allergies.filter(a => a !== allergy) });
+                                }
+                              }}
+                            />
+                            <label htmlFor={`allergy-${allergy}`} className="text-sm cursor-pointer">
+                              {allergy}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  Note: This creates a basic patient record. You can add more FHIR resources (conditions, medications, allergies, etc.) after creation using the full patient management interface.
-                </p>
-              </div>
+                {/* 6. Prior Treatments/Procedures */}
+                <AccordionItem value="procedures">
+                  <AccordionTrigger className="text-base font-semibold">
+                    6. Prior Treatments & Procedures
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Select Prior Treatments</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {treatments.map((treatment) => (
+                          <div key={treatment} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`treatment-${treatment}`}
+                              checked={newPatient.prior_treatments.includes(treatment)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setNewPatient({ ...newPatient, prior_treatments: [...newPatient.prior_treatments, treatment] });
+                                } else {
+                                  setNewPatient({ ...newPatient, prior_treatments: newPatient.prior_treatments.filter(t => t !== treatment) });
+                                }
+                              }}
+                            />
+                            <label htmlFor={`treatment-${treatment}`} className="text-sm cursor-pointer">
+                              {treatment}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* 7. Immunizations */}
+                <AccordionItem value="immunizations">
+                  <AccordionTrigger className="text-base font-semibold">
+                    7. Immunization History
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Select Completed Immunizations</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {commonImmunizations.map((immunization) => (
+                          <div key={immunization} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`immunization-${immunization}`}
+                              checked={newPatient.immunizations.includes(immunization)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setNewPatient({ ...newPatient, immunizations: [...newPatient.immunizations, immunization] });
+                                } else {
+                                  setNewPatient({ ...newPatient, immunizations: newPatient.immunizations.filter(i => i !== immunization) });
+                                }
+                              }}
+                            />
+                            <label htmlFor={`immunization-${immunization}`} className="text-sm cursor-pointer">
+                              {immunization}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* 8. Family History */}
+                <AccordionItem value="family_history">
+                  <AccordionTrigger className="text-base font-semibold">
+                    8. Family Medical History
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Select Family History Conditions</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {familyConditions.map((condition) => (
+                          <div key={condition} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`family-${condition}`}
+                              checked={newPatient.family_history.includes(condition)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setNewPatient({ ...newPatient, family_history: [...newPatient.family_history, condition] });
+                                } else {
+                                  setNewPatient({ ...newPatient, family_history: newPatient.family_history.filter(c => c !== condition) });
+                                }
+                              }}
+                            />
+                            <label htmlFor={`family-${condition}`} className="text-sm cursor-pointer">
+                              {condition}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* 9. Encounter History */}
+                <AccordionItem value="encounters">
+                  <AccordionTrigger className="text-base font-semibold">
+                    9. Encounter / Visit History
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="encounter_type">Last Encounter Type</Label>
+                        <Select value={newPatient.encounter_type} onValueChange={(value) => setNewPatient({ ...newPatient, encounter_type: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select encounter type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="outpatient">Outpatient Visit</SelectItem>
+                            <SelectItem value="inpatient">Inpatient Admission</SelectItem>
+                            <SelectItem value="emergency">Emergency Visit</SelectItem>
+                            <SelectItem value="telehealth">Telehealth</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="last_visit_date">Last Visit Date</Label>
+                        <Input
+                          id="last_visit_date"
+                          type="date"
+                          value={newPatient.last_visit_date}
+                          onChange={(e) => setNewPatient({ ...newPatient, last_visit_date: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* 10. Diagnostic Reports */}
+                <AccordionItem value="diagnostic_reports">
+                  <AccordionTrigger className="text-base font-semibold">
+                    10. Diagnostic Reports & Imaging
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Select Completed Reports/Imaging</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {diagnosticReportTypes.map((report) => (
+                          <div key={report} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`report-${report}`}
+                              checked={newPatient.diagnostic_reports.includes(report)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setNewPatient({ ...newPatient, diagnostic_reports: [...newPatient.diagnostic_reports, report] });
+                                } else {
+                                  setNewPatient({ ...newPatient, diagnostic_reports: newPatient.diagnostic_reports.filter(r => r !== report) });
+                                }
+                              }}
+                            />
+                            <label htmlFor={`report-${report}`} className="text-sm cursor-pointer">
+                              {report}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="imaging_findings">Imaging Findings / Notes</Label>
+                      <Input
+                        id="imaging_findings"
+                        value={newPatient.imaging_findings}
+                        onChange={(e) => setNewPatient({ ...newPatient, imaging_findings: e.target.value })}
+                        placeholder="e.g., No significant findings, mass detected, etc."
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* 11. Care Plan */}
+                <AccordionItem value="care_plan">
+                  <AccordionTrigger className="text-base font-semibold">
+                    11. Care Plan & Clinical Notes
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="care_plan_notes">Care Plan Notes</Label>
+                      <textarea
+                        id="care_plan_notes"
+                        className="w-full min-h-[100px] px-3 py-2 border border-input rounded-md text-sm"
+                        value={newPatient.care_plan_notes}
+                        onChange={(e) => setNewPatient({ ...newPatient, care_plan_notes: e.target.value })}
+                        placeholder="Enter care plan details, treatment goals, clinical notes..."
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
 
             <DialogFooter>
