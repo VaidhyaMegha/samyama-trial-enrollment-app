@@ -789,6 +789,78 @@ export const adminAPI = {
       console.error('Error deleting protocol:', error);
       throw error;
     }
+  },
+
+  // PI Dashboard Methods (reusing admin infrastructure)
+  getPIDashboard: async () => {
+    try {
+      const response = await api.get('/pi/dashboard');
+      return {
+        data: response.data,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error fetching PI dashboard:', error);
+      throw error;
+    }
+  },
+
+  getPITrials: async () => {
+    try {
+      const response = await api.get('/pi/trials');
+      return {
+        data: response.data.trials || [],
+        count: response.data.count || 0,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error fetching PI trials:', error);
+      throw error;
+    }
+  },
+
+  getPITrialDetails: async (trialId: string) => {
+    try {
+      const response = await api.get(`/pi/trials/${trialId}`);
+      return {
+        data: response.data,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error fetching PI trial details:', error);
+      throw error;
+    }
+  },
+
+  exportEnrollmentSummary: async (trialId?: string) => {
+    try {
+      const url = trialId
+        ? `/pi/export/enrollment-summary?trial_id=${trialId}`
+        : '/pi/export/enrollment-summary';
+
+      const response = await api.get(url, {
+        responseType: 'blob'
+      });
+
+      // Create download link
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `enrollment_summary_${trialId || 'all'}_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      return {
+        success: true,
+        message: 'Report exported successfully'
+      };
+    } catch (error) {
+      console.error('Error exporting enrollment summary:', error);
+      throw error;
+    }
   }
 };
 

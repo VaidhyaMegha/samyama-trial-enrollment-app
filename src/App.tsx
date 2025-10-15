@@ -19,6 +19,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import ProcessingMonitor from "./pages/admin/ProcessingMonitor";
 import AuditTrail from "./pages/admin/AuditTrail";
 import SystemLogs from "./pages/admin/SystemLogs";
+import PITrials from "./pages/pi/PITrials";
+import PITrialDetail from "./pages/pi/PITrialDetail";
 
 const queryClient = new QueryClient();
 
@@ -118,6 +120,22 @@ const App = () => (
                 element={
                   <AppLayout>
                     <SystemLogs />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/pi/trials"
+                element={
+                  <AppLayout>
+                    <PITrials />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/pi/trials/:trialId"
+                element={
+                  <AppLayout>
+                    <PITrialDetail />
                   </AppLayout>
                 }
               />

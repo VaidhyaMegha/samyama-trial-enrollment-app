@@ -6,7 +6,8 @@ import {
   Settings,
   Activity,
   Terminal,
-  FileSearch
+  FileSearch,
+  Beaker
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -47,8 +48,8 @@ export function AppSidebar() {
         { title: 'System Logs', url: '/admin/logs', icon: Terminal },
       ],
       PI: [
-        { title: 'Enrollment', url: '/enrollment', icon: ClipboardCheck },
-        { title: 'Match Review', url: '/review', icon: Activity },
+        { title: 'My Trials', url: '/pi/trials', icon: Beaker },
+        { title: 'Match Review', url: '/matches', icon: Activity },
       ],
     };
 
