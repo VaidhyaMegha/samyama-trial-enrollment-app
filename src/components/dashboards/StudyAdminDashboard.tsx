@@ -5,52 +5,54 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useEffect, useState } from 'react';
+import { adminAPI } from '@/services/api';
+import { toast } from 'sonner';
 
 export function StudyAdminDashboard() {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<any>(null);
 
-  const stats = [
-    { label: 'Total Protocols', value: '156', icon: FileText, color: 'text-primary' },
-    { label: 'Active Protocols', value: '94', icon: CheckCircle, color: 'text-success' },
-    { label: 'Processing', value: '12', icon: Clock, color: 'text-warning' },
-    { label: 'Failed', value: '3', icon: AlertCircle, color: 'text-destructive' },
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const response = await adminAPI.getDashboard();
+      setDashboardData(response.data);
+    } catch (error: any) {
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const stats = dashboardData ? [
+    { label: 'Total Protocols', value: dashboardData.total_protocols?.toString() || '0', icon: FileText, color: 'text-primary' },
+    { label: 'Active Protocols', value: dashboardData.active_protocols?.toString() || '0', icon: CheckCircle, color: 'text-success' },
+    { label: 'Processing', value: dashboardData.processing_protocols?.toString() || '0', icon: Clock, color: 'text-warning' },
+    { label: 'Failed', value: dashboardData.failed_protocols?.toString() || '0', icon: AlertCircle, color: 'text-destructive' },
+  ] : [
+    { label: 'Total Protocols', value: '0', icon: FileText, color: 'text-primary' },
+    { label: 'Active Protocols', value: '0', icon: CheckCircle, color: 'text-success' },
+    { label: 'Processing', value: '0', icon: Clock, color: 'text-warning' },
+    { label: 'Failed', value: '0', icon: AlertCircle, color: 'text-destructive' },
   ];
 
-  const processingData = [
-    { month: 'Jan', protocols: 12 },
-    { month: 'Feb', protocols: 19 },
-    { month: 'Mar', protocols: 15 },
-    { month: 'Apr', protocols: 23 },
-    { month: 'May', protocols: 18 },
-    { month: 'Jun', protocols: 25 },
+  const processingData = dashboardData?.recent_activity || [
+    { month: 'Jan', protocols: 0 },
+    { month: 'Feb', protocols: 0 },
+    { month: 'Mar', protocols: 0 },
+    { month: 'Apr', protocols: 0 },
+    { month: 'May', protocols: 0 },
+    { month: 'Jun', protocols: 0 },
   ];
 
-  const recentProtocols = [
-    { 
-      id: '1', 
-      title: 'Phase III Oncology Trial', 
-      identifier: 'ONCOLOGY-2024-001',
-      status: 'completed',
-      uploadedAt: '2024-01-15',
-      criteriaCount: 34
-    },
-    { 
-      id: '2', 
-      title: 'Cardiovascular Study', 
-      identifier: 'CARDIO-2024-015',
-      status: 'processing',
-      uploadedAt: '2024-01-14',
-      criteriaCount: 0
-    },
-    { 
-      id: '3', 
-      title: 'Neurology Research Protocol', 
-      identifier: 'NEURO-2024-008',
-      status: 'completed',
-      uploadedAt: '2024-01-13',
-      criteriaCount: 28
-    },
-  ];
+  const recentProtocols = dashboardData?.recent_protocols || [];
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any; label: string }> = {
@@ -61,6 +63,17 @@ export function StudyAdminDashboard() {
     const config = variants[status] || variants.completed;
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center space-y-4">
+          <Clock className="h-12 w-12 animate-spin mx-auto text-muted-foreground" />
+          <p className="text-muted-foreground">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -131,28 +144,36 @@ export function StudyAdminDashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {recentProtocols.map((protocol) => (
-              <div
-                key={protocol.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
-                onClick={() => navigate(`/protocols/${protocol.id}`)}
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{protocol.title}</p>
-                    <Badge variant="outline" className="text-xs">
-                      {protocol.identifier}
-                    </Badge>
+          {recentProtocols.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No protocols found</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentProtocols.map((protocol: any) => (
+                <div
+                  key={protocol.trial_id || protocol.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/protocols`)}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{protocol.title || protocol.trial_id}</p>
+                      <Badge variant="outline" className="text-xs">
+                        {protocol.trial_id || protocol.identifier}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Uploaded: {protocol.upload_date || protocol.uploadedAt || 'N/A'} •
+                      {protocol.criteria_count > 0 ? ` ${protocol.criteria_count} criteria` : ' Processing'}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Uploaded: {protocol.uploadedAt} • {protocol.criteriaCount > 0 ? `${protocol.criteriaCount} criteria` : 'Processing'}
-                  </p>
+                  {getStatusBadge(protocol.status || 'completed')}
                 </div>
-                {getStatusBadge(protocol.status)}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
