@@ -42,16 +42,198 @@ export default function EligibilityCheck() {
   // Check for patient data from navigation state
   useEffect(() => {
     const state = location.state as any;
-    if (state?.patientData) {
+
+    // Handle full patient data from HealthLake
+    if (state?.fullPatientData) {
+      const fullPatient = state.fullPatientData;
+      console.log('Full patient data received:', fullPatient);
+      setSelectedPatient(fullPatient);
+
+      // Pre-populate ALL patient data fields from FHIR resources
+      const newPatientData: any = {
+        // Demographics
+        age: fullPatient.age?.toString() || '',
+        gender: fullPatient.gender ? fullPatient.gender.charAt(0).toUpperCase() + fullPatient.gender.slice(1).toLowerCase() : '',
+
+        // Conditions
+        conditions: [],
+        cancerType: '',
+        stage: '',
+        clinicalStatus: 'active',
+
+        // Lab Values
+        labValues: {
+          hemoglobin: '',
+          platelets: '',
+          creatinine: '',
+          alt: '',
+          ast: '',
+          wbc: '',
+          neutrophils: '',
+          bilirubin: '',
+        },
+
+        // Performance Status
+        ecogStatus: '',
+        karnofskyScore: '',
+
+        // Medications
+        medications: [],
+
+        // Allergies
+        allergies: [],
+        allergyCriticality: 'low',
+
+        // Procedures
+        priorTreatments: [],
+        surgeries: [],
+
+        // Immunizations
+        immunizations: [],
+
+        // Family History
+        familyHistory: [],
+
+        // Encounters
+        encounterType: '',
+        lastVisitDate: '',
+
+        // Diagnostic Reports
+        diagnosticReports: [],
+        imagingFindings: '',
+      };
+
+      // Extract Conditions
+      if (fullPatient.conditions && Array.isArray(fullPatient.conditions)) {
+        fullPatient.conditions.forEach((cond: any) => {
+          const conditionText = cond.code?.text || cond.code?.coding?.[0]?.display || '';
+          if (conditionText) {
+            newPatientData.conditions.push(conditionText);
+          }
+        });
+      }
+
+      // Extract Observations (Lab values & Performance Status)
+      if (fullPatient.observations && Array.isArray(fullPatient.observations)) {
+        fullPatient.observations.forEach((obs: any) => {
+          const code = obs.code?.coding?.[0]?.code;
+          const value = obs.valueQuantity?.value || obs.valueInteger;
+
+          // Lab values mapping by LOINC code
+          if (code === '718-7') newPatientData.labValues.hemoglobin = value?.toString() || '';
+          else if (code === '777-3') newPatientData.labValues.platelets = value?.toString() || '';
+          else if (code === '2160-0') newPatientData.labValues.creatinine = value?.toString() || '';
+          else if (code === '1742-6') newPatientData.labValues.alt = value?.toString() || '';
+          else if (code === '1920-8') newPatientData.labValues.ast = value?.toString() || '';
+          else if (code === '6690-2') newPatientData.labValues.wbc = value?.toString() || '';
+          else if (code === '1988-5') newPatientData.labValues.neutrophils = value?.toString() || '';
+          else if (code === '1975-2') newPatientData.labValues.bilirubin = value?.toString() || '';
+          else if (code === '4548-4') newPatientData.labValues.hba1c = value?.toString() || '';
+          // Performance Status
+          else if (code === '89247-1') newPatientData.ecogStatus = value?.toString() || '';
+          else if (obs.code?.text?.toLowerCase().includes('karnofsky')) {
+            newPatientData.karnofskyScore = value?.toString() || '';
+          }
+        });
+      }
+
+      // Extract Medications (note the key is 'medicationstatements' not 'medications')
+      if (fullPatient.medicationstatements && Array.isArray(fullPatient.medicationstatements)) {
+        fullPatient.medicationstatements.forEach((med: any) => {
+          const medName = med.medicationCodeableConcept?.text || med.medicationCodeableConcept?.coding?.[0]?.display;
+          if (medName) {
+            newPatientData.medications.push(medName);
+          }
+        });
+      }
+
+      // Extract Allergies (note the key is 'allergyintolerances' not 'allergies')
+      if (fullPatient.allergyintolerances && Array.isArray(fullPatient.allergyintolerances)) {
+        fullPatient.allergyintolerances.forEach((allergy: any) => {
+          const allergyName = allergy.code?.text || allergy.code?.coding?.[0]?.display;
+          if (allergyName) {
+            newPatientData.allergies.push(allergyName);
+          }
+        });
+      }
+
+      // Extract Procedures (Prior Treatments)
+      if (fullPatient.procedures && Array.isArray(fullPatient.procedures)) {
+        fullPatient.procedures.forEach((proc: any) => {
+          const procName = proc.code?.text || proc.code?.coding?.[0]?.display;
+          if (procName) {
+            newPatientData.priorTreatments.push(procName);
+          }
+        });
+      }
+
+      // Extract Immunizations
+      if (fullPatient.immunizations && Array.isArray(fullPatient.immunizations)) {
+        fullPatient.immunizations.forEach((imm: any) => {
+          const vaccineName = imm.vaccineCode?.text || imm.vaccineCode?.coding?.[0]?.display;
+          if (vaccineName) {
+            newPatientData.immunizations.push(vaccineName);
+          }
+        });
+      }
+
+      // Extract Family History
+      if (fullPatient.familyHistory && Array.isArray(fullPatient.familyHistory)) {
+        fullPatient.familyHistory.forEach((fh: any) => {
+          // Family history can have condition array
+          if (fh.condition && Array.isArray(fh.condition)) {
+            fh.condition.forEach((c: any) => {
+              const conditionText = c.code?.text || c.code?.coding?.[0]?.display;
+              if (conditionText) {
+                newPatientData.familyHistory.push(conditionText);
+              }
+            });
+          }
+        });
+      }
+
+      // Extract Encounters
+      if (fullPatient.encounters && Array.isArray(fullPatient.encounters) && fullPatient.encounters.length > 0) {
+        const lastEncounter = fullPatient.encounters[0];
+        // Map encounter class display to our form values
+        const encounterType = lastEncounter.class?.display?.toLowerCase();
+        if (encounterType) {
+          // Map FHIR values to form values
+          if (encounterType.includes('ambulatory')) newPatientData.encounterType = 'ambulatory';
+          else if (encounterType.includes('inpatient')) newPatientData.encounterType = 'inpatient';
+          else if (encounterType.includes('emergency')) newPatientData.encounterType = 'emergency';
+          else if (encounterType.includes('virtual')) newPatientData.encounterType = 'virtual';
+        }
+        // Extract start date from period
+        if (lastEncounter.period?.start) {
+          // Convert ISO datetime to date only (YYYY-MM-DD)
+          const dateOnly = lastEncounter.period.start.split('T')[0];
+          newPatientData.lastVisitDate = dateOnly;
+        }
+      }
+
+      // Extract Diagnostic Reports (note the key is 'diagnosticreports')
+      if (fullPatient.diagnosticreports && Array.isArray(fullPatient.diagnosticreports)) {
+        fullPatient.diagnosticreports.forEach((report: any) => {
+          const reportName = report.code?.text || report.code?.coding?.[0]?.display;
+          if (reportName) {
+            newPatientData.diagnosticReports.push(reportName);
+          }
+        });
+      }
+
+      setPatientData(newPatientData);
+      toast.success(`Patient ${fullPatient.name} data loaded with all FHIR resources`);
+    }
+    // Fallback for basic patient data
+    else if (state?.patientData) {
       const patient = state.patientData;
       setSelectedPatient(patient);
 
-      // Pre-populate patient data fields
       setPatientData({
         ...patientData,
         age: patient.age?.toString() || '',
         gender: patient.gender || '',
-        birthDate: patient.birthDate || '',
       });
 
       toast.success(`Patient ${patient.name} loaded`);
@@ -86,7 +268,6 @@ export default function EligibilityCheck() {
     // 1. Patient - Demographics
     age: '',
     gender: '',
-    birthDate: '',
 
     // 2. Condition - Diagnoses
     conditions: [] as string[],
@@ -482,7 +663,7 @@ export default function EligibilityCheck() {
                 {/* 1. Patient Demographics */}
                 <div className="space-y-2">
                   <h3 className="font-semibold text-sm text-muted-foreground">1. Patient Demographics</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="age">Age *</Label>
                       <Input
@@ -506,16 +687,6 @@ export default function EligibilityCheck() {
                           <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="birthDate">Birth Date</Label>
-                      <Input
-                        id="birthDate"
-                        type="date"
-                        value={patientData.birthDate}
-                        onChange={(e) => setPatientData({ ...patientData, birthDate: e.target.value })}
-                      />
                     </div>
                   </div>
                 </div>
@@ -1284,7 +1455,6 @@ export default function EligibilityCheck() {
                       setPatientData({
                         age: '',
                         gender: '',
-                        birthDate: '',
                         conditions: [],
                         cancerType: '',
                         stage: '',

@@ -1,4 +1,4 @@
-import { Users, UserCheck, TrendingUp, Clock } from 'lucide-react';
+import { Users, UserCheck, TrendingUp, Clock, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,55 +6,104 @@ import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
+import { adminAPI, matchesAPI } from '@/services/api';
 
 export function PIDashboard() {
   const navigate = useNavigate();
 
+  // Fetch real data from backend
+  const { data: dashboardData, isLoading } = useQuery({
+    queryKey: ['pi', 'dashboard'],
+    queryFn: async () => {
+      const response = await adminAPI.getPIDashboard();
+      return response.data;
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Fetch trials for the active trials section
+  const { data: trialsData } = useQuery({
+    queryKey: ['pi', 'trials'],
+    queryFn: async () => {
+      const response = await adminAPI.getPITrials();
+      return response.data;
+    },
+  });
+
+  // Fetch all matches to calculate confidence distribution
+  const { data: allMatchesData } = useQuery({
+    queryKey: ['matches', 'all'],
+    queryFn: async () => {
+      const response = await matchesAPI.getAll();
+      return response.data || [];
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Use real data from API
   const stats = [
-    { label: 'Active Trials', value: '8', icon: Users, color: 'text-primary' },
-    { label: 'Total Enrolled', value: '247', icon: UserCheck, color: 'text-success' },
-    { label: 'Pending Review', value: '23', icon: Clock, color: 'text-warning' },
-    { label: 'Match Rate', value: '78%', icon: TrendingUp, color: 'text-secondary' },
-  ];
-
-  const confidenceData = [
-    { name: 'High (≥80%)', value: 156, color: 'hsl(var(--success))' },
-    { name: 'Medium (50-79%)', value: 68, color: 'hsl(var(--warning))' },
-    { name: 'Low (<50%)', value: 23, color: 'hsl(var(--destructive))' },
-  ];
-
-  const activeTrials = [
     {
-      id: '1',
-      title: 'Phase III Oncology Trial',
-      identifier: 'ONCOLOGY-2024-001',
-      enrolled: 45,
-      target: 60,
-      matchRate: 82,
+      label: 'Active Trials',
+      value: dashboardData?.metrics?.active_trials?.toString() || '0',
+      icon: Users,
+      color: 'text-primary'
     },
     {
-      id: '2',
-      title: 'Cardiovascular Study',
-      identifier: 'CARDIO-2024-015',
-      enrolled: 32,
-      target: 50,
-      matchRate: 75,
+      label: 'Total Enrolled',
+      value: dashboardData?.metrics?.total_enrolled?.toString() || '0',
+      icon: UserCheck,
+      color: 'text-success'
     },
     {
-      id: '3',
-      title: 'Neurology Research Protocol',
-      identifier: 'NEURO-2024-008',
-      enrolled: 28,
-      target: 40,
-      matchRate: 88,
+      label: 'Pending Review',
+      value: dashboardData?.metrics?.pending_pi_approval?.toString() || '0',
+      icon: Clock,
+      color: 'text-warning'
+    },
+    {
+      label: 'Match Rate',
+      value: `${dashboardData?.metrics?.match_rate || 0}%`,
+      icon: TrendingUp,
+      color: 'text-secondary'
     },
   ];
 
-  const pendingReviews = [
-    { id: '1', patient: 'PT-1234', protocol: 'ONCOLOGY-2024-001', confidence: 92, date: '2024-01-15' },
-    { id: '2', patient: 'PT-5678', protocol: 'CARDIO-2024-015', confidence: 85, date: '2024-01-15' },
-    { id: '3', patient: 'PT-9012', protocol: 'NEURO-2024-008', confidence: 78, date: '2024-01-14' },
-  ];
+  // Calculate real confidence distribution from all matches
+  const calculateConfidenceDistribution = () => {
+    if (!allMatchesData || allMatchesData.length === 0) {
+      return [
+        { name: 'High (≥80%)', value: 0, color: 'hsl(var(--success))' },
+        { name: 'Medium (50-79%)', value: 0, color: 'hsl(var(--warning))' },
+        { name: 'Low (<50%)', value: 0, color: 'hsl(var(--destructive))' },
+      ];
+    }
+
+    const high = allMatchesData.filter((m: any) => m.match_score >= 80).length;
+    const medium = allMatchesData.filter((m: any) => m.match_score >= 50 && m.match_score < 80).length;
+    const low = allMatchesData.filter((m: any) => m.match_score < 50).length;
+
+    return [
+      { name: 'High (≥80%)', value: high, color: 'hsl(var(--success))' },
+      { name: 'Medium (50-79%)', value: medium, color: 'hsl(var(--warning))' },
+      { name: 'Low (<50%)', value: low, color: 'hsl(var(--destructive))' },
+    ];
+  };
+
+  const confidenceData = calculateConfidenceDistribution();
+
+  // Use real trials data (top 3)
+  const activeTrials = (trialsData || []).slice(0, 3);
+
+  // Use real pending reviews
+  const pendingReviews = dashboardData?.pending_reviews || [];
 
   return (
     <div className="space-y-8">
