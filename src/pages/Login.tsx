@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -70,9 +70,18 @@ export default function Login() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className="mx-auto w-16 h-16 bg-primary rounded-2xl flex items-center justify-center"
+              className="mx-auto flex flex-col items-center justify-center"
             >
-              <Activity className="h-8 w-8 text-primary-foreground" />
+              <img
+                src="/branding/samyama_light_bg.png"
+                alt="Samyama.ai"
+                className="h-12 w-auto mb-2 dark:hidden"
+              />
+              <img
+                src="/branding/samyama_darkmode_bg.png"
+                alt="Samyama.ai"
+                className="h-12 w-auto mb-2 hidden dark:block"
+              />
             </motion.div>
             <div>
               <CardTitle className="text-2xl font-bold text-foreground">

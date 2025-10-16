@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
+import { AppFooter } from './AppFooter';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { motion } from 'framer-motion';
 
@@ -39,6 +40,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           >
             {children}
           </motion.main>
+          <AppFooter />
         </div>
       </div>
     </SidebarProvider>

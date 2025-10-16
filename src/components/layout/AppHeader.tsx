@@ -36,7 +36,21 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
       <SidebarTrigger />
-      
+
+      {/* Samyama.ai Logo */}
+      <div className="flex items-center gap-2">
+        <img
+          src="/branding/samyama_light_bg.png"
+          alt="Samyama.ai"
+          className="h-6 w-auto dark:hidden"
+        />
+        <img
+          src="/branding/samyama_darkmode_bg.png"
+          alt="Samyama.ai"
+          className="h-6 w-auto hidden dark:block"
+        />
+      </div>
+
       <div className="flex flex-1 items-center justify-end gap-4">
         <Button
           variant="ghost"
