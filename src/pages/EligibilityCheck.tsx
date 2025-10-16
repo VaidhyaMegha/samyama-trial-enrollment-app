@@ -446,7 +446,7 @@ export default function EligibilityCheck() {
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!results || !selectedProtocol) {
       toast.error('No results to export');
       return;
@@ -456,50 +456,79 @@ export default function EligibilityCheck() {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.width;
 
-      // Header
+      // Load Samyama.ai Logo asynchronously
+      const logoImg = new Image();
+      logoImg.src = '/branding/samyama_light_bg.png';
+
+      // Wait for logo to load
+      await new Promise<void>((resolve, reject) => {
+        logoImg.onload = () => {
+          try {
+            // Add logo at top-left (40x10mm)
+            doc.addImage(logoImg, 'PNG', 14, 8, 40, 10);
+            resolve();
+          } catch (error) {
+            console.warn('Failed to add logo to PDF:', error);
+            resolve(); // Continue even if logo fails
+          }
+        };
+        logoImg.onerror = () => {
+          console.warn('Logo image failed to load');
+          resolve(); // Continue without logo if it fails to load
+        };
+        // Timeout after 3 seconds
+        setTimeout(() => resolve(), 3000);
+      });
+
+      // Header with Company Branding
       doc.setFontSize(20);
       doc.setTextColor(31, 41, 55); // gray-800
-      doc.text('Eligibility Assessment Report', pageWidth / 2, 20, { align: 'center' });
+      doc.text('Eligibility Assessment Report', pageWidth / 2, 25, { align: 'center' });
+
+      // Company Name
+      doc.setFontSize(10);
+      doc.setTextColor(99, 102, 241); // primary color
+      doc.text('Powered by Samyama.ai', pageWidth / 2, 32, { align: 'center' });
 
       // Date
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setTextColor(107, 114, 128); // gray-500
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 28, { align: 'center' });
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 38, { align: 'center' });
 
       // Protocol Information
       doc.setFontSize(14);
       doc.setTextColor(31, 41, 55);
-      doc.text('Protocol Information', 14, 40);
+      doc.text('Protocol Information', 14, 48);
 
       doc.setFontSize(10);
       doc.setTextColor(55, 65, 81);
-      doc.text(`Protocol ID: ${selectedProtocol.nctId}`, 14, 48);
-      doc.text(`Title: ${selectedProtocol.title}`, 14, 54);
-      doc.text(`Phase: ${selectedProtocol.phase}`, 14, 60);
-      doc.text(`Disease: ${selectedProtocol.disease}`, 14, 66);
+      doc.text(`Protocol ID: ${selectedProtocol.nctId}`, 14, 56);
+      doc.text(`Title: ${selectedProtocol.title}`, 14, 62);
+      doc.text(`Phase: ${selectedProtocol.phase}`, 14, 68);
+      doc.text(`Disease: ${selectedProtocol.disease}`, 14, 74);
 
       // Patient Information
       doc.setFontSize(14);
       doc.setTextColor(31, 41, 55);
-      doc.text('Patient Information', 14, 78);
+      doc.text('Patient Information', 14, 86);
 
       doc.setFontSize(10);
       doc.setTextColor(55, 65, 81);
-      doc.text(`Age: ${patientData.age} years`, 14, 86);
-      doc.text(`Gender: ${patientData.gender}`, 14, 92);
-      doc.text(`ECOG Status: ${patientData.ecogStatus}`, 14, 98);
+      doc.text(`Age: ${patientData.age} years`, 14, 94);
+      doc.text(`Gender: ${patientData.gender}`, 14, 100);
+      doc.text(`ECOG Status: ${patientData.ecogStatus}`, 14, 106);
 
       // Overall Score
       doc.setFontSize(14);
       doc.setTextColor(31, 41, 55);
-      doc.text('Overall Match Score', 14, 110);
+      doc.text('Overall Match Score', 14, 118);
 
       doc.setFontSize(24);
       const scoreColor = results.overallConfidence >= 80 ? [34, 197, 94] :
                         results.overallConfidence >= 50 ? [251, 191, 36] :
                         [239, 68, 68];
       doc.setTextColor(scoreColor[0], scoreColor[1], scoreColor[2]);
-      doc.text(`${results.overallConfidence}%`, 14, 122);
+      doc.text(`${results.overallConfidence}%`, 14, 130);
 
       // Criteria Summary
       const metCount = results.criteria.filter((c: any) => c.met).length;
@@ -507,12 +536,12 @@ export default function EligibilityCheck() {
 
       doc.setFontSize(10);
       doc.setTextColor(55, 65, 81);
-      doc.text(`Criteria Met: ${metCount} / ${totalCount}`, 14, 130);
+      doc.text(`Criteria Met: ${metCount} / ${totalCount}`, 14, 138);
 
       // Criteria Details Table
       doc.setFontSize(14);
       doc.setTextColor(31, 41, 55);
-      doc.text('Detailed Criteria Analysis', 14, 142);
+      doc.text('Detailed Criteria Analysis', 14, 150);
 
       const tableData = results.criteria.map((criterion: any) => [
         criterion.text.substring(0, 60) + (criterion.text.length > 60 ? '...' : ''),
@@ -524,7 +553,7 @@ export default function EligibilityCheck() {
       autoTable(doc, {
         head: [['Criterion', 'Status', 'Confidence', 'Patient Value']],
         body: tableData,
-        startY: 148,
+        startY: 156,
         theme: 'grid',
         headStyles: { fillColor: [99, 102, 241], textColor: 255, fontSize: 9 },
         bodyStyles: { fontSize: 8, textColor: [55, 65, 81] },
@@ -548,12 +577,17 @@ export default function EligibilityCheck() {
         }
       });
 
-      // Footer
+      // Footer with Samyama.ai branding
       const finalY = (doc as any).lastAutoTable.finalY || 200;
       doc.setFontSize(8);
       doc.setTextColor(107, 114, 128);
-      doc.text('Trial Compass Pro - Clinical Trial Eligibility Assessment', pageWidth / 2, finalY + 20, { align: 'center' });
-      doc.text('This report is for informational purposes only and does not constitute medical advice.', pageWidth / 2, finalY + 25, { align: 'center' });
+      doc.text('Trial Compass Pro - Clinical Trial Eligibility Assessment', pageWidth / 2, finalY + 15, { align: 'center' });
+      doc.text('This report is for informational purposes only and does not constitute medical advice.', pageWidth / 2, finalY + 20, { align: 'center' });
+
+      // Samyama.ai branding in footer
+      doc.setFontSize(9);
+      doc.setTextColor(99, 102, 241); // primary color
+      doc.text('Powered by Samyama.ai | https://samyama.ai', pageWidth / 2, finalY + 28, { align: 'center' });
 
       // Save PDF
       const fileName = `eligibility-report-${selectedProtocol.nctId}-${new Date().getTime()}.pdf`;
