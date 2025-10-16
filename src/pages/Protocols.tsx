@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Upload, FileText, Download, Trash2, Search, Filter, CheckCircle2, Loader2, XCircle, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Upload, FileText, Download, Trash2, Search, Filter, CheckCircle2, Loader2, XCircle, Clock, Users } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,14 +11,24 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
-import { protocolsAPI } from '@/services/api';
+import { protocolsAPI, patientsAPI } from '@/services/api';
 import { Progress } from '@/components/ui/progress';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export default function Protocols() {
+  const navigate = useNavigate();
   const [protocols, setProtocols] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedProtocols, setSelectedProtocols] = useState<string[]>([]);
+
+  // Patient selection state for Flow 2
+  const [selectedProtocolForEligibility, setSelectedProtocolForEligibility] = useState<any>(null);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [patientPopoverOpen, setPatientPopoverOpen] = useState(false);
 
   // Processing tracker state
   const [processingStatus, setProcessingStatus] = useState<'idle' | 'uploading' | 'processing' | 'completed' | 'failed'>('idle');
@@ -179,6 +190,74 @@ export default function Protocols() {
   useEffect(() => {
     loadProtocols();
   }, [loadProtocols]);
+
+  // Load all patients when user wants to select one for eligibility check
+  const loadPatients = useCallback(async () => {
+    setIsLoadingPatients(true);
+    try {
+      const response = await patientsAPI.getAll();
+      setPatients(response.data || []);
+      toast.success(`Loaded ${response.data.length} patients`);
+    } catch (error: any) {
+      console.error('Error loading patients:', error);
+      toast.error('Failed to load patients');
+      setPatients([]);
+    } finally {
+      setIsLoadingPatients(false);
+    }
+  }, []);
+
+  const handlePatientSearch = (value: string) => {
+    setPatientSearch(value);
+  };
+
+  const handleSelectProtocolForEligibility = (protocol: any) => {
+    setSelectedProtocolForEligibility(protocol);
+    // Load patients when a protocol is selected
+    if (patients.length === 0) {
+      loadPatients();
+    }
+  };
+
+  const handlePatientSelected = async (patient: any) => {
+    if (!selectedProtocolForEligibility) {
+      toast.error('Please select a protocol first');
+      return;
+    }
+
+    toast.info('Loading complete patient data...');
+
+    try {
+      // Fetch full patient details with all FHIR resources from HealthLake
+      const response = await patientsAPI.getById(patient.id);
+      const fullPatientData = response.data;
+
+      // Navigate to eligibility check page with protocol and patient data
+      navigate('/eligibility-check', {
+        state: {
+          protocolId: selectedProtocolForEligibility.id,
+          protocolData: selectedProtocolForEligibility,
+          patientId: patient.id,
+          fullPatientData: fullPatientData
+        }
+      });
+
+      toast.success(`Patient ${patient.name} data loaded successfully`);
+    } catch (error: any) {
+      console.error('Error loading patient details:', error);
+      toast.error('Failed to load complete patient data');
+
+      // Fallback: navigate with basic patient data
+      navigate('/eligibility-check', {
+        state: {
+          protocolId: selectedProtocolForEligibility.id,
+          protocolData: selectedProtocolForEligibility,
+          patientId: patient.id,
+          patientData: patient
+        }
+      });
+    }
+  };
 
   const filteredProtocols = protocols.filter((protocol) => {
     const matchesSearch = protocol.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -569,6 +648,121 @@ export default function Protocols() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Flow 2: Select Protocol → Select Patient → Check Eligibility */}
+      <Card className="border-2 border-blue-200 dark:border-blue-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-500" />
+            Check Patient Eligibility
+          </CardTitle>
+          <CardDescription>
+            Select a protocol and then choose an existing patient to check their eligibility
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Step 1: Select Protocol */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Step 1: Select Protocol</label>
+            <Select
+              value={selectedProtocolForEligibility?.id || ''}
+              onValueChange={(value) => {
+                const protocol = protocols.find(p => p.id === value);
+                handleSelectProtocolForEligibility(protocol);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a protocol..." />
+              </SelectTrigger>
+              <SelectContent>
+                {protocols.map((protocol) => (
+                  <SelectItem key={protocol.id} value={protocol.id}>
+                    {protocol.nctId} - {protocol.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Step 2: Select Patient (only show after protocol is selected) */}
+          {selectedProtocolForEligibility && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="space-y-2"
+            >
+              <label className="text-sm font-medium">Step 2: Select Patient</label>
+              <Popover open={patientPopoverOpen} onOpenChange={setPatientPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="text-muted-foreground">
+                      {isLoadingPatients ? 'Loading patients...' : 'Search and select a patient...'}
+                    </span>
+                    <Search className="ml-2 h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[600px] p-0" align="start">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search by patient name or ID..."
+                      value={patientSearch}
+                      onValueChange={handlePatientSearch}
+                    />
+                    <CommandList>
+                      {isLoadingPatients && (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+                          Loading patients...
+                        </div>
+                      )}
+                      {!isLoadingPatients && patients.length === 0 && (
+                        <CommandEmpty>No patients found. Create patients first.</CommandEmpty>
+                      )}
+                      {!isLoadingPatients && patients.length > 0 && (
+                        <CommandGroup heading={`${patients.filter(p =>
+                          !patientSearch ||
+                          p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
+                          p.id.toLowerCase().includes(patientSearch.toLowerCase())
+                        ).length} patient(s) found`}>
+                          {patients
+                            .filter(p =>
+                              !patientSearch ||
+                              p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
+                              p.id.toLowerCase().includes(patientSearch.toLowerCase())
+                            )
+                            .map((patient) => (
+                              <CommandItem
+                                key={patient.id}
+                                onSelect={() => {
+                                  handlePatientSelected(patient);
+                                  setPatientPopoverOpen(false);
+                                }}
+                              >
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{patient.name}</span>
+                                    <Badge variant="outline" className="text-xs">{patient.gender || 'Unknown'}</Badge>
+                                    {patient.age && <Badge variant="secondary" className="text-xs">{patient.age} years</Badge>}
+                                  </div>
+                                  <span className="text-sm text-muted-foreground">ID: {patient.id}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              <p className="text-xs text-muted-foreground">
+                Select a patient to view their profile and check eligibility against{' '}
+                <span className="font-semibold">{selectedProtocolForEligibility.nctId}</span>
+              </p>
+            </motion.div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Protocol Management */}
       <Card>

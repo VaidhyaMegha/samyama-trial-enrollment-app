@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import PatientProfileCard from '@/components/PatientProfileCard';
 
 export default function EligibilityCheck() {
   const location = useLocation();
@@ -39,9 +40,34 @@ export default function EligibilityCheck() {
   const [patientSearch, setPatientSearch] = useState('');
   const [patientPopoverOpen, setPatientPopoverOpen] = useState(false);
 
-  // Check for patient data from navigation state
+  // Load patients when protocol is selected
+  useEffect(() => {
+    const loadPatients = async () => {
+      if (selectedProtocol && patients.length === 0) {
+        setIsLoadingPatients(true);
+        try {
+          const response = await patientsAPI.getAll();
+          setPatients(response.data || []);
+        } catch (error: any) {
+          console.error('Error loading patients:', error);
+          toast.error('Failed to load patients');
+        } finally {
+          setIsLoadingPatients(false);
+        }
+      }
+    };
+    loadPatients();
+  }, [selectedProtocol]);
+
+  // Check for patient data and protocol from navigation state
   useEffect(() => {
     const state = location.state as any;
+
+    // If protocol data is passed (from Protocols page Flow 2), pre-select it
+    if (state?.protocolData) {
+      setSelectedProtocol(state.protocolData);
+      toast.success(`Protocol ${state.protocolData.nctId} pre-selected`);
+    }
 
     // Handle full patient data from HealthLake
     if (state?.fullPatientData) {
@@ -365,9 +391,14 @@ export default function EligibilityCheck() {
       return;
     }
 
-    if (!patientData.age || !patientData.gender || !patientData.ecogStatus) {
-      toast.error('Please fill in required patient information');
-      return;
+    // For existing patients with ID, we don't need to validate form fields
+    // as we're using their full FHIR data directly
+    if (!selectedPatient?.id) {
+      // Only validate for temporary/manual patients
+      if (!patientData.age || !patientData.gender || !patientData.ecogStatus) {
+        toast.error('Please fill in required patient information');
+        return;
+      }
     }
 
     setIsChecking(true);
@@ -645,21 +676,194 @@ export default function EligibilityCheck() {
         </CardContent>
       </Card>
 
-      {/* Patient Data Entry */}
+      {/* Patient Selection OR Data Entry OR Profile Display */}
       {selectedProtocol && (
         <Card>
           <CardHeader>
             <CardTitle>Patient Information</CardTitle>
-            <CardDescription>Enter patient data for eligibility assessment</CardDescription>
+            <CardDescription>
+              {selectedPatient && selectedPatient.id
+                ? 'Review patient profile before checking eligibility'
+                : 'Select an existing patient or enter temporary patient data for eligibility assessment'}
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="manual">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="manual">Manual Entry</TabsTrigger>
-                <TabsTrigger value="upload">Upload FHIR JSON</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="manual" className="space-y-4 mt-4">
+          <CardContent className="space-y-4">
+            {/* Patient Selector - Show when no patient is selected yet */}
+            {!selectedPatient?.id && (
+              <div className="space-y-2 p-4 border-2 border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50/50 dark:bg-blue-950/20">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-500" />
+                  Select Existing Patient (Optional)
+                </label>
+                <Popover open={patientPopoverOpen} onOpenChange={setPatientPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span className="text-muted-foreground">
+                        {isLoadingPatients ? 'Loading patients...' : 'Search and select an existing patient...'}
+                      </span>
+                      <Search className="ml-2 h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[600px] p-0" align="start">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search by patient name or ID..."
+                        value={patientSearch}
+                        onValueChange={(value) => setPatientSearch(value)}
+                      />
+                      <CommandList>
+                        {isLoadingPatients && (
+                          <div className="p-4 text-center text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+                            Loading patients...
+                          </div>
+                        )}
+                        {!isLoadingPatients && patients.length === 0 && (
+                          <CommandEmpty>No patients found. You can enter patient data manually below.</CommandEmpty>
+                        )}
+                        {!isLoadingPatients && patients.length > 0 && (
+                          <CommandGroup heading={`${patients.filter((p: any) =>
+                            !patientSearch ||
+                            p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
+                            p.id.toLowerCase().includes(patientSearch.toLowerCase())
+                          ).length} patient(s) found`}>
+                            {patients
+                              .filter((p: any) =>
+                                !patientSearch ||
+                                p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
+                                p.id.toLowerCase().includes(patientSearch.toLowerCase())
+                              )
+                              .map((patient: any) => (
+                                <CommandItem
+                                  key={patient.id}
+                                  onSelect={async () => {
+                                    setPatientPopoverOpen(false);
+                                    toast.info('Loading complete patient data...');
+
+                                    try {
+                                      // Fetch full patient details
+                                      const response = await patientsAPI.getById(patient.id);
+                                      const fullPatientData = response.data;
+                                      setSelectedPatient(fullPatientData);
+
+                                      // Extract and populate patientData
+                                      const newPatientData: any = {
+                                        age: fullPatientData.age?.toString() || '',
+                                        gender: fullPatientData.gender ? fullPatientData.gender.charAt(0).toUpperCase() + fullPatientData.gender.slice(1).toLowerCase() : '',
+                                        conditions: [],
+                                        cancerType: '',
+                                        stage: '',
+                                        clinicalStatus: 'active',
+                                        labValues: {
+                                          hemoglobin: '',
+                                          platelets: '',
+                                          creatinine: '',
+                                          alt: '',
+                                          ast: '',
+                                          wbc: '',
+                                          neutrophils: '',
+                                          bilirubin: '',
+                                        },
+                                        ecogStatus: '',
+                                        karnofskyScore: '',
+                                        medications: [],
+                                        allergies: [],
+                                        allergyCriticality: 'low',
+                                        priorTreatments: [],
+                                        surgeries: [],
+                                        immunizations: [],
+                                        familyHistory: [],
+                                        encounterType: '',
+                                        lastVisitDate: '',
+                                        diagnosticReports: [],
+                                        imagingFindings: '',
+                                      };
+
+                                      // Extract data from FHIR resources (same logic as useEffect)
+                                      if (fullPatientData.conditions && Array.isArray(fullPatientData.conditions)) {
+                                        fullPatientData.conditions.forEach((cond: any) => {
+                                          const conditionText = cond.code?.text || cond.code?.coding?.[0]?.display || '';
+                                          if (conditionText) {
+                                            newPatientData.conditions.push(conditionText);
+                                          }
+                                        });
+                                      }
+
+                                      if (fullPatientData.observations && Array.isArray(fullPatientData.observations)) {
+                                        fullPatientData.observations.forEach((obs: any) => {
+                                          const code = obs.code?.coding?.[0]?.code;
+                                          const value = obs.valueQuantity?.value || obs.valueInteger;
+                                          if (code === '718-7') newPatientData.labValues.hemoglobin = value?.toString() || '';
+                                          else if (code === '777-3') newPatientData.labValues.platelets = value?.toString() || '';
+                                          else if (code === '2160-0') newPatientData.labValues.creatinine = value?.toString() || '';
+                                          else if (code === '1742-6') newPatientData.labValues.alt = value?.toString() || '';
+                                          else if (code === '1920-8') newPatientData.labValues.ast = value?.toString() || '';
+                                          else if (code === '6690-2') newPatientData.labValues.wbc = value?.toString() || '';
+                                          else if (code === '1988-5') newPatientData.labValues.neutrophils = value?.toString() || '';
+                                          else if (code === '1975-2') newPatientData.labValues.bilirubin = value?.toString() || '';
+                                          else if (code === '89247-1') newPatientData.ecogStatus = value?.toString() || '';
+                                        });
+                                      }
+
+                                      setPatientData(newPatientData);
+                                      toast.success(`Patient ${fullPatientData.name} loaded successfully`);
+                                    } catch (error: any) {
+                                      console.error('Error loading patient:', error);
+                                      toast.error('Failed to load patient data');
+                                      setSelectedPatient(patient);
+                                    }
+                                  }}
+                                >
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">{patient.name}</span>
+                                      <Badge variant="outline" className="text-xs">{patient.gender || 'Unknown'}</Badge>
+                                      {patient.age && <Badge variant="secondary" className="text-xs">{patient.age} years</Badge>}
+                                    </div>
+                                    <span className="text-sm text-muted-foreground">ID: {patient.id}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground">
+                  Or enter patient data manually below
+                </p>
+              </div>
+            )}
+
+            {/* If we have an existing patient with ID, show profile card instead of form */}
+            {selectedPatient && selectedPatient.id ? (
+              <div className="space-y-4">
+                <PatientProfileCard patientData={selectedPatient} />
+
+                <Button onClick={handleEligibilityCheck} disabled={isChecking} className="w-full" size="lg">
+                  {isChecking ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analyzing with AWS Comprehend Medical...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Check Eligibility
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              // Original form for temporary/manual patient entry
+              <Tabs defaultValue="manual">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+                  <TabsTrigger value="upload">Upload FHIR JSON</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="manual" className="space-y-4 mt-4">
                 {/* 1. Patient Demographics */}
                 <div className="space-y-2">
                   <h3 className="font-semibold text-sm text-muted-foreground">1. Patient Demographics</h3>
@@ -1178,7 +1382,8 @@ export default function EligibilityCheck() {
                   </Button>
                 </div>
               </TabsContent>
-            </Tabs>
+              </Tabs>
+            )}
           </CardContent>
         </Card>
       )}

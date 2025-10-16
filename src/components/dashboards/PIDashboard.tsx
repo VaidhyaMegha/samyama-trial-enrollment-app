@@ -114,7 +114,7 @@ export function PIDashboard() {
             Monitor enrollment and review patient matches
           </p>
         </div>
-        <Button onClick={() => navigate('/review')}>
+        <Button onClick={() => navigate('/matches')}>
           <UserCheck className="mr-2 h-4 w-4" />
           Review Matches
         </Button>
@@ -219,33 +219,43 @@ export function PIDashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {pendingReviews.map((review) => (
-              <div
-                key={review.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
-                onClick={() => navigate(`/review/${review.id}`)}
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{review.patient}</p>
-                    <Badge variant="outline" className="text-xs">
-                      {review.protocol}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Submitted: {review.date}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-success text-success-foreground">
-                    {review.confidence}%
-                  </Badge>
-                  <Button size="sm" variant="outline">
-                    Review
-                  </Button>
-                </div>
+            {pendingReviews.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No pending reviews</p>
               </div>
-            ))}
+            ) : (
+              pendingReviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={() => navigate('/matches')}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{review.patient}</p>
+                      <Badge variant="outline" className="text-xs">
+                        {review.protocol}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Submitted: {review.date}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-success text-success-foreground">
+                      {review.confidence}%
+                    </Badge>
+                    <Button size="sm" variant="outline" onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/matches');
+                    }}>
+                      Review
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
