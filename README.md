@@ -9,7 +9,7 @@
 
 **Modern React Frontend for AWS Trial Enrollment System**
 
-[Live Demo](https://enrollment.samyama.care) • [Backend Repo](https://github.com/VaidhyaMegha/aws-trial-enrollment-agent) • [AWS Hackathon](https://aws-agent-hackathon.devpost.com/)
+[Live Demo](https://enrollment.samyama.care) • [Backend Repo](https://github.com/VaidhyaMegha/samyama-trial-enrollment-agent) • [AWS Hackathon](https://aws-agent-hackathon.devpost.com/)
 
 </div>
 
@@ -141,14 +141,14 @@ This frontend connects to an AI-powered backend running on AWS with Amazon Bedro
 ### Prerequisites
 
 - Node.js 18+ and npm
-- AWS backend deployed (see [backend repo](https://github.com/VaidhyaMegha/aws-trial-enrollment-agent))
+- AWS backend deployed (see [backend repo](https://github.com/VaidhyaMegha/samyama-trial-enrollment-agent))
 
 ### Installation
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/VaidhyaMegha/trial-compass-pro.git
-cd trial-compass-pro
+git clone https://github.com/VaidhyaMegha/samyama-trial-enrollment-app.git
+cd samyama-trial-enrollment-app
 
 # 2. Install dependencies
 npm install
@@ -222,7 +222,7 @@ enrollment.samyama.care
 ## 📦 Project Structure
 
 ```
-trial-compass-pro/
+samyama-trial-enrollment-app/
 ├── src/
 │   ├── components/           # React components
 │   │   ├── ui/              # shadcn/ui components (40+ components)
@@ -648,8 +648,8 @@ MIT License - See [LICENSE](LICENSE) file for details
 **Organization**: Samyama.ai
 
 **GitHub**:
-- Frontend: [trial-compass-pro](https://github.com/VaidhyaMegha/trial-compass-pro)
-- Backend: [aws-trial-enrollment-agent](https://github.com/VaidhyaMegha/aws-trial-enrollment-agent)
+- Frontend: [samyama-trial-enrollment-app](https://github.com/VaidhyaMegha/samyama-trial-enrollment-app)
+- Backend: [samyama-trial-enrollment-agent](https://github.com/VaidhyaMegha/samyama-trial-enrollment-agent)
 
 **Live Demo**: [enrollment.samyama.care](https://enrollment.samyama.care)
 
@@ -664,6 +664,6 @@ MIT License - See [LICENSE](LICENSE) file for details
 ![Tailwind](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=flat&logo=tailwind-css)
 ![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=flat&logo=vite)
 
-**[⭐ Star this repo](https://github.com/VaidhyaMegha/trial-compass-pro) • [🔗 Live Demo](https://enrollment.samyama.care) • [🔙 Backend](https://github.com/VaidhyaMegha/aws-trial-enrollment-agent)**
+**[⭐ Star this repo](https://github.com/VaidhyaMegha/samyama-trial-enrollment-app) • [🔗 Live Demo](https://enrollment.samyama.care) • [🔙 Backend](https://github.com/VaidhyaMegha/samyama-trial-enrollment-agent)**
 
 </div>
