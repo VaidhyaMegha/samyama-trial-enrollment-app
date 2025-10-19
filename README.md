@@ -1,13 +1,13 @@
-# Trial Compass Pro - Frontend
+# Samyama's Trial Enrollment App - Frontend
 
 <div align="center">
 
-![Trial Compass Pro](https://img.shields.io/badge/Trial-Compass%20Pro-4CAF50?style=for-the-badge)
+![Samyama Trial Enrollment](https://img.shields.io/badge/Samyama-Trial%20Enrollment%20App-4CAF50?style=for-the-badge)
 ![React](https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)
 
-**Modern React Frontend for AWS Trial Enrollment System**
+**Modern React Frontend for Samyama's Clinical Trial Enrollment System**
 
 [Live Demo](https://enrollment.samyama.care) • [Backend Repo](https://github.com/VaidhyaMegha/samyama-trial-enrollment-agent) • [AWS Hackathon](https://aws-agent-hackathon.devpost.com/)
 
@@ -58,7 +58,7 @@ Watch our **3-minute demo** showcasing the complete workflow across all three us
 
 ## 🎯 Overview
 
-**Trial Compass Pro** is the modern React frontend for the AWS Trial Enrollment System, providing intuitive interfaces for three distinct user personas: Clinical Research Coordinators (CRC), Study Administrators, and Principal Investigators (PI). Built with React 18, TypeScript, and Tailwind CSS, it delivers a fast, responsive, and accessible user experience.
+**Samyama's Trial Enrollment App** is the modern React frontend for Samyama's Clinical Trial Enrollment System, providing intuitive interfaces for three distinct user personas: Clinical Research Coordinators (CRC), Study Administrators, and Principal Investigators (PI). Built with React 18, TypeScript, and Tailwind CSS, it delivers a fast, responsive, and accessible user experience.
 
 This frontend connects to an AI-powered backend running on AWS with Amazon Bedrock (Mistral Large 2), AWS HealthLake, Textract, and Comprehend Medical to automate clinical trial patient matching.
 
