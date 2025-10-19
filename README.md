@@ -15,6 +15,47 @@
 
 ---
 
+## 📑 Table of Contents
+
+- [Demo Video](#-demo-video)
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Technology Stack](#️-technology-stack)
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [UI Components](#-ui-components)
+- [Authentication Flow](#-authentication-flow)
+- [Key Pages & Features](#-key-pages--features)
+- [Demo Screenshots](#-demo-screenshots)
+- [Live Deployment](#-live-deployment)
+- [Testing](#-testing)
+- [Design System](#-design-system)
+- [Configuration](#-configuration)
+- [Accessibility](#-accessibility)
+- [Performance](#-performance)
+- [Roadmap](#️-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Acknowledgments](#-acknowledgments)
+- [Contact](#-contact)
+
+---
+
+## 🎥 Demo Video
+
+Watch our **3-minute demo** showcasing the complete workflow across all three user personas:
+
+[![Watch Demo Video](https://img.shields.io/badge/▶-Watch%20Demo-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=skKkjhaM_Iw)
+
+**Video Highlights:**
+- **CRC Workflow**: Patient selection from AWS HealthLake and AI-powered eligibility checking
+- **StudyAdmin Workflow**: Protocol upload and 6-phase AI processing pipeline visualization
+- **PI Workflow**: Enrollment oversight with match confidence distribution
+- **Real-time AI reasoning** with Mistral Large 2 and confidence scores
+- **Complete end-to-end demonstration** from protocol upload to patient matching
+
+---
+
 ## 🎯 Overview
 
 **Trial Compass Pro** is the modern React frontend for the AWS Trial Enrollment System, providing intuitive interfaces for three distinct user personas: Clinical Research Coordinators (CRC), Study Administrators, and Principal Investigators (PI). Built with React 18, TypeScript, and Tailwind CSS, it delivers a fast, responsive, and accessible user experience.
@@ -176,6 +217,8 @@ VITE_AWS_USER_POOL_CLIENT_ID=your-client-id
 # Optional: Custom Domain
 VITE_CUSTOM_DOMAIN=enrollment.samyama.care
 ```
+
+> **Note**: For actual AWS Cognito User Pool ID and Client ID values needed to run your own instance, please contact the project maintainers or refer to the [backend repository](https://github.com/VaidhyaMegha/samyama-trial-enrollment-agent) deployment guide.
 
 ### Development
 
@@ -421,6 +464,16 @@ sequenceDiagram
 - CRC: `crc@test.com` / `Test@123`
 - StudyAdmin: `studyadmin@test.com` / `Test@123`
 - PI: `pi@test.com` / `Test@123`
+
+> **⚠️ Demo Environment Notice**
+>
+> This is a demonstration deployment for the AWS AI Agent Hackathon 2025:
+> - All patient data is **synthetic** (generated via Synthea - no real PHI)
+> - Demo accounts are isolated with **no production data access**
+> - Test credentials are for **demonstration purposes only**
+> - For hackathon evaluation and testing only
+>
+> To run your own instance, follow the [Quick Start](#-quick-start) guide or contact project maintainers for setup assistance.
 
 ---
 
