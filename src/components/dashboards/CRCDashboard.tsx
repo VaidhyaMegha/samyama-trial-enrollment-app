@@ -34,7 +34,7 @@ export function CRCDashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Welcome, Clinical Research Coordinator</h1>
         <p className="text-muted-foreground mt-2">
-          Find eligible patients and manage trial enrollments
+          Find eligible patients and manage trial screenings
         </p>
       </div>
 

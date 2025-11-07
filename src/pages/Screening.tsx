@@ -12,7 +12,7 @@ import { motion } from 'framer-motion';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { matchesAPI } from '@/services/api';
 
-export default function Enrollment() {
+export default function Screening() {
   const [matches, setMatches] = useState<any[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState('');
@@ -20,12 +20,12 @@ export default function Enrollment() {
 
   const stats = [
     { label: 'Total Protocols', value: '156', icon: Users, color: 'text-primary' },
-    { label: 'Active Enrollments', value: '324', icon: CheckCircle2, color: 'text-success' },
+    { label: 'Active Screenings', value: '324', icon: CheckCircle2, color: 'text-success' },
     { label: 'Pending Reviews', value: '42', icon: Clock, color: 'text-warning' },
     { label: 'Match Rate', value: '78%', icon: TrendingUp, color: 'text-secondary' },
   ];
 
-  const enrollmentData = [
+  const screeningData = [
     { protocol: 'ONCO-001', current: 78, target: 150 },
     { protocol: 'CARD-015', current: 45, target: 100 },
     { protocol: 'NEUR-008', current: 23, target: 50 },
@@ -33,12 +33,12 @@ export default function Enrollment() {
   ];
 
   const trendData = [
-    { month: 'Jan', enrollments: 45 },
-    { month: 'Feb', enrollments: 52 },
-    { month: 'Mar', enrollments: 61 },
-    { month: 'Apr', enrollments: 73 },
-    { month: 'May', enrollments: 85 },
-    { month: 'Jun', enrollments: 108 },
+    { month: 'Jan', screenings: 45 },
+    { month: 'Feb', screenings: 52 },
+    { month: 'Mar', screenings: 61 },
+    { month: 'Apr', screenings: 73 },
+    { month: 'May', screenings: 85 },
+    { month: 'Jun', screenings: 108 },
   ];
 
   const distributionData = [
@@ -88,11 +88,22 @@ export default function Enrollment() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Enrollment Management</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Screening Management</h1>
         <p className="text-muted-foreground mt-2">
-          Monitor enrollment progress and review patient matches
+          Monitor screening progress and review patient matches for screening visits
         </p>
       </div>
+
+      {/* Regulatory Disclaimer */}
+      <Card className="border-amber-200 bg-amber-50/50">
+        <CardContent className="pt-6">
+          <p className="text-sm text-amber-900">
+            ⚠️ <strong>Regulatory Notice:</strong> All approvals shown are based on preliminary AI matching analysis. 
+            Final eligibility must be confirmed during the screening visit per protocol requirements and ICH-GCP guidelines. 
+            Please recheck all inclusion/exclusion criteria at the screening visit.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -122,12 +133,12 @@ export default function Enrollment() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Enrollment Progress by Protocol</CardTitle>
-            <CardDescription>Current vs. target enrollment</CardDescription>
+            <CardTitle>Screening Progress by Protocol</CardTitle>
+            <CardDescription>Current vs. target screening</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={enrollmentData}>
+              <BarChart data={screeningData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="protocol" />
                 <YAxis />
@@ -142,8 +153,8 @@ export default function Enrollment() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Enrollment Trend</CardTitle>
-            <CardDescription>Monthly enrollment over time</CardDescription>
+            <CardTitle>Screening Trend</CardTitle>
+            <CardDescription>Monthly screenings over time</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -152,7 +163,7 @@ export default function Enrollment() {
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="enrollments" stroke="hsl(var(--primary))" strokeWidth={2} />
+                <Line type="monotone" dataKey="screenings" stroke="hsl(var(--primary))" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -162,8 +173,8 @@ export default function Enrollment() {
       {/* Distribution Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Enrollment Distribution by Disease Type</CardTitle>
-          <CardDescription>Total enrolled patients across disease categories</CardDescription>
+          <CardTitle>Screening Distribution by Disease Type</CardTitle>
+          <CardDescription>Total screened patients across disease categories</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -254,9 +265,16 @@ export default function Enrollment() {
           <DialogHeader>
             <DialogTitle>Review Patient Match</DialogTitle>
             <DialogDescription>
-              Assess the match quality and approve or reject for screening
+              Assess the match quality and approve or reject for screening visit
             </DialogDescription>
           </DialogHeader>
+
+          {/* Regulatory Warning */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-xs text-amber-800">
+              ⚠️ <strong>Important:</strong> This approval is for screening only. Final eligibility confirmation is required at the screening visit per protocol requirements.
+            </p>
+          </div>
 
           {selectedMatch && (
             <div className="space-y-4">

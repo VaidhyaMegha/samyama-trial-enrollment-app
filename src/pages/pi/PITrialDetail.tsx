@@ -125,7 +125,7 @@ export default function PITrialDetail() {
       change: null
     },
     {
-      label: 'Enrolled',
+      label: 'Screened',
       value: (data.enrollment?.approved || 0).toString(),
       icon: CheckCircle2,
       color: 'text-green-600',
@@ -225,14 +225,14 @@ export default function PITrialDetail() {
         ))}
       </div>
 
-      {/* Enrollment Progress */}
+      {/* Screening Progress */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Enrollment Progress</CardTitle>
+              <CardTitle>Screening Progress</CardTitle>
               <CardDescription>
-                Track progress toward enrollment target
+                Track progress toward screening target
               </CardDescription>
             </div>
             <Badge variant="outline" className="text-lg px-4 py-2">
@@ -253,10 +253,10 @@ export default function PITrialDetail() {
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Enrollment Funnel */}
+        {/* Screening Funnel */}
         <Card>
           <CardHeader>
-            <CardTitle>Enrollment Funnel</CardTitle>
+            <CardTitle>Screening Funnel</CardTitle>
             <CardDescription>
               Breakdown of patient statuses
             </CardDescription>
@@ -326,7 +326,7 @@ export default function PITrialDetail() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Approved & Enrolled</span>
+                  <span className="text-sm">Approved for Screening</span>
                 </div>
                 <span className="font-semibold">{data.enrollment?.approved || 0}</span>
               </div>
@@ -383,7 +383,7 @@ export default function PITrialDetail() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  <h3 className="text-lg font-semibold">Enrolled Patients</h3>
+                  <h3 className="text-lg font-semibold">Screened Patients</h3>
                   <Badge variant="outline" className="ml-2">
                     {patientsByStatus.approved.length}
                   </Badge>

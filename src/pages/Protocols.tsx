@@ -835,7 +835,7 @@ export default function Protocols() {
                   <TableHead>Phase</TableHead>
                   <TableHead>Upload Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Enrollment</TableHead>
+                  <TableHead>Screening Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>

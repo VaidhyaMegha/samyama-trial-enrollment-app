@@ -307,11 +307,18 @@ export default function Matches() {
                         {/* PI Approval Stage - Only PIs can approve/reject at this stage */}
                         {match.status === 'pending_pi_approval' && (
                           <div className="space-y-3 pt-4">
-                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                              <p className="text-sm text-purple-800 flex items-center gap-2">
-                                <Shield className="h-4 w-4" />
-                                <strong>PI Approval Required:</strong> CRC has approved. Final PI approval needed for enrollment.
-                              </p>
+                            <div className="space-y-2">
+                              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                                <p className="text-sm text-purple-800 flex items-center gap-2">
+                                  <Shield className="h-4 w-4" />
+                                  <strong>PI Approval Required:</strong> CRC has approved. Final PI approval needed to proceed with screening.
+                                </p>
+                              </div>
+                              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                <p className="text-xs text-amber-800">
+                                  ⚠️ <strong>Regulatory Reminder:</strong> Approval is based on preliminary AI match. Eligibility must be confirmed at the screening visit. Please recheck all inclusion/exclusion criteria during screening.
+                                </p>
+                              </div>
                             </div>
                             {user?.role === 'PI' || user?.role === 'StudyAdmin' ? (
                               <div className="flex gap-3">
@@ -344,11 +351,18 @@ export default function Matches() {
 
                         {/* Approved State */}
                         {match.status === 'approved' && (
-                          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <p className="text-sm text-green-800 flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4" />
-                              <strong>Fully Approved:</strong> This match has completed 2-level approval (CRC + PI) and patient can proceed with enrollment.
-                            </p>
+                          <div className="space-y-2">
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                              <p className="text-sm text-green-800 flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4" />
+                                <strong>Approved for Screening:</strong> This match has completed 2-level approval (CRC + PI) and patient can proceed with screening visit.
+                              </p>
+                            </div>
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                              <p className="text-xs text-amber-800">
+                                ⚠️ <strong>Important:</strong> Approval is based on preliminary AI match. Final eligibility must be confirmed during the screening visit per protocol requirements.
+                              </p>
+                            </div>
                           </div>
                         )}
 
@@ -357,7 +371,7 @@ export default function Matches() {
                           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                             <p className="text-sm text-red-800 flex items-center gap-2">
                               <XCircle className="h-4 w-4" />
-                              <strong>Rejected:</strong> This match has been rejected and will not proceed to enrollment.
+                              <strong>Rejected:</strong> This match has been rejected and will not proceed to screening.
                             </p>
                           </div>
                         )}
@@ -378,10 +392,19 @@ export default function Matches() {
             <AlertDialogTitle>
               {reviewAction === 'approve' ? 'Approve Match' : 'Reject Match'}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {reviewAction === 'approve'
-                ? 'Are you sure you want to approve this patient-protocol match? The patient will be eligible to proceed with enrollment.'
-                : 'Are you sure you want to reject this patient-protocol match? This action cannot be undone.'}
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                {reviewAction === 'approve'
+                  ? 'Are you sure you want to approve this patient-protocol match? The patient will be eligible to proceed with screening.'
+                  : 'Are you sure you want to reject this patient-protocol match? This action cannot be undone.'}
+              </p>
+              {reviewAction === 'approve' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-xs text-amber-800">
+                    ⚠️ <strong>Regulatory Notice:</strong> This approval is based on preliminary AI analysis. Final eligibility confirmation is required at the screening visit per ICH-GCP guidelines.
+                  </p>
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
 

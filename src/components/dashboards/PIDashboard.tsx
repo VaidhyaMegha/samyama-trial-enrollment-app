@@ -57,7 +57,7 @@ export function PIDashboard() {
       color: 'text-primary'
     },
     {
-      label: 'Total Enrolled',
+      label: 'Total Screened',
       value: dashboardData?.metrics?.total_enrolled?.toString() || '0',
       icon: UserCheck,
       color: 'text-success'
@@ -111,7 +111,7 @@ export function PIDashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Principal Investigator Dashboard</h1>
           <p className="text-muted-foreground mt-2">
-            Monitor enrollment and review patient matches
+            Monitor screening and review patient matches
           </p>
         </div>
         <Button onClick={() => navigate('/matches')}>
@@ -119,6 +119,21 @@ export function PIDashboard() {
           Review Matches
         </Button>
       </div>
+
+      {/* Regulatory Compliance Notice */}
+      <Card className="border-amber-200 bg-amber-50/50">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3">
+            <div className="text-amber-600 mt-0.5">⚠️</div>
+            <div className="space-y-1">
+              <p className="font-semibold text-amber-900">Regulatory Compliance Notice</p>
+              <p className="text-sm text-amber-800">
+                All match approvals shown are based on preliminary AI analysis. Final patient eligibility <strong>must</strong> be confirmed during the screening visit per protocol requirements and ICH-GCP guidelines. Site coordinators should recheck all inclusion/exclusion criteria at the screening visit to prevent protocol deviations.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -180,9 +195,9 @@ export function PIDashboard() {
         {/* Active Trials */}
         <Card>
           <CardHeader>
-            <CardTitle>Active Trial Enrollment</CardTitle>
+            <CardTitle>Active Trial Screening Status</CardTitle>
             <CardDescription>
-              Current enrollment status for active trials
+              Current screening status for active trials
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -613,9 +613,26 @@ export default function EligibilityCheck() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Patient Eligibility Check</h1>
         <p className="text-muted-foreground mt-2">
-          Search for a protocol and assess patient eligibility
+          Search for a protocol and assess patient eligibility for screening
         </p>
       </div>
+
+      {/* Regulatory Compliance Notice */}
+      <Card className="border-amber-200 bg-amber-50/50">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3">
+            <div className="text-amber-600 mt-0.5">⚠️</div>
+            <div className="space-y-1">
+              <p className="font-semibold text-amber-900">Important: Screening vs. Enrollment</p>
+              <p className="text-sm text-amber-800">
+                This tool provides preliminary eligibility assessment for <strong>screening purposes only</strong>. 
+                Approval here means the patient can proceed to a screening visit, NOT direct enrollment. 
+                Final eligibility must be confirmed during the screening visit per protocol requirements and ICH-GCP guidelines.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Protocol Selection */}
       <Card>

@@ -12,7 +12,7 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import EligibilityCheck from "./pages/EligibilityCheck";
 import Protocols from "./pages/Protocols";
-import Enrollment from "./pages/Enrollment";
+import Screening from "./pages/Screening";
 import Matches from "./pages/Matches";
 import Patients from "./pages/Patients";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -68,10 +68,10 @@ const App = () => (
                 }
               />
               <Route
-                path="/enrollment"
+                path="/screening"
                 element={
                   <AppLayout>
-                    <Enrollment />
+                    <Screening />
                   </AppLayout>
                 }
               />
