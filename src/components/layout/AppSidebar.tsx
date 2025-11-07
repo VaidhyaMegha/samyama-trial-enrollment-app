@@ -44,6 +44,8 @@ export function AppSidebar() {
       StudyAdmin: [
         { title: 'Protocols', url: '/protocols', icon: FileText },
         { title: 'Processing Monitor', url: '/admin/processing', icon: Activity },
+        { title: 'Role Management', url: '/admin/roles', icon: Users },
+        { title: 'Workflow Config', url: '/admin/workflows', icon: Settings },
         { title: 'Audit Trail', url: '/admin/audit', icon: FileSearch },
         { title: 'System Logs', url: '/admin/logs', icon: Terminal },
       ],

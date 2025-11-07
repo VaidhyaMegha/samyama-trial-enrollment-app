@@ -21,6 +21,8 @@ import AuditTrail from "./pages/admin/AuditTrail";
 import SystemLogs from "./pages/admin/SystemLogs";
 import PITrials from "./pages/pi/PITrials";
 import PITrialDetail from "./pages/pi/PITrialDetail";
+import RoleManagement from "./pages/admin/RoleManagement";
+import WorkflowConfiguration from "./pages/admin/WorkflowConfiguration";
 
 const queryClient = new QueryClient();
 
@@ -120,6 +122,22 @@ const App = () => (
                 element={
                   <AppLayout>
                     <SystemLogs />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/admin/roles"
+                element={
+                  <AppLayout>
+                    <RoleManagement />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/admin/workflows"
+                element={
+                  <AppLayout>
+                    <WorkflowConfiguration />
                   </AppLayout>
                 }
               />

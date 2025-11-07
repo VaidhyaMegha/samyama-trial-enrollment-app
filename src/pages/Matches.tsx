@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Clock, FileText, Loader2, UserCheck, Shield } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, FileText, Loader2, UserCheck, Shield, AlertCircle, Info } from 'lucide-react';
 import { matchesAPI } from '@/services/api';
+import { RoleBadge } from '@/components/RoleBadge';
+import { DEFAULT_WORKFLOW } from '@/types/rbac';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertDialog,
@@ -30,6 +32,9 @@ export default function Matches() {
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [isReviewing, setIsReviewing] = useState(false);
+  
+  // TODO: Load from API - for now using default workflow
+  const workflowConfig = DEFAULT_WORKFLOW;
 
   useEffect(() => {
     loadMatches();
@@ -74,6 +79,33 @@ export default function Matches() {
     setSelectedMatch(match);
     setReviewAction(action);
     setReviewNotes('');
+  };
+
+  // Check if current user can approve based on their role and workflow config
+  const canApprove = (matchStatus: string): boolean => {
+    if (!user) return false;
+
+    // StudyAdmin can always approve at any stage
+    if (user.role === 'StudyAdmin') return true;
+
+    // Check workflow configuration for other roles
+    const userWorkflowRole = user.isLeadCRC ? 'Lead_CRC' : user.role;
+    
+    if (matchStatus === 'pending') {
+      // At pending stage, check if user role is in approval levels
+      return workflowConfig.approvalLevels.includes(userWorkflowRole as any);
+    }
+
+    if (matchStatus === 'pending_pi_approval') {
+      // At PI stage, only PI can approve (unless PI approval is not required)
+      if (!workflowConfig.requirePIApproval) {
+        // If PI approval not required, Lead_CRC and StudyAdmin can skip this stage
+        return ['Lead_CRC', 'StudyAdmin'].includes(userWorkflowRole);
+      }
+      return user.role === 'PI';
+    }
+
+    return false;
   };
 
   const handleReviewConfirm = async () => {
@@ -220,9 +252,9 @@ export default function Matches() {
                 >
                   <Card>
                     <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <CardTitle className="text-xl">
                               {match.patientId}
                             </CardTitle>
@@ -233,6 +265,7 @@ export default function Matches() {
                               {getStatusIcon(match.status)}
                               {getStatusLabel(match.status)}
                             </Badge>
+                            {user && <RoleBadge role={user.isLeadCRC ? 'Lead_CRC' : user.role} size="sm" />}
                           </div>
                           <CardDescription>
                             Matched with: {match.protocolName}
@@ -266,16 +299,25 @@ export default function Matches() {
                           </div>
                         </div>
 
-                        {/* CRC Review Stage - Only CRCs can approve/reject at this stage */}
+                        {/* Initial Review Stage */}
                         {match.status === 'pending' && (
                           <div className="space-y-3 pt-4">
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                              <p className="text-sm text-blue-800 flex items-center gap-2">
-                                <Clock className="h-4 w-4" />
-                                <strong>CRC Review Required:</strong> Review this match and approve to send to PI for final approval.
-                              </p>
-                            </div>
-                            {user?.role === 'CRC' || user?.role === 'StudyAdmin' ? (
+                            {!workflowConfig.requirePIApproval ? (
+                              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                <p className="text-sm text-green-800 flex items-center gap-2">
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  <strong>Streamlined Approval:</strong> PI approval is optional. Authorized roles can approve screening directly.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <p className="text-sm text-blue-800 flex items-center gap-2">
+                                  <Clock className="h-4 w-4" />
+                                  <strong>Review Required:</strong> Review this match to proceed with approval workflow.
+                                </p>
+                              </div>
+                            )}
+                            {canApprove(match.status) ? (
                               <div className="flex gap-3">
                                 <Button
                                   variant="default"
@@ -283,7 +325,7 @@ export default function Matches() {
                                   onClick={() => handleReviewClick(match, 'approve')}
                                 >
                                   <CheckCircle2 className="mr-2 h-4 w-4" />
-                                  Approve & Send to PI
+                                  {workflowConfig.requirePIApproval ? 'Approve & Send to PI' : 'Approve for Screening'}
                                 </Button>
                                 <Button
                                   variant="destructive"
@@ -296,31 +338,41 @@ export default function Matches() {
                               </div>
                             ) : (
                               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <p className="text-sm text-gray-600 text-center">
-                                  Only CRC can review matches at this stage.
+                                <p className="text-sm text-gray-600 text-center flex items-center justify-center gap-2">
+                                  <AlertCircle className="h-4 w-4" />
+                                  You don't have permission to review matches at this stage.
                                 </p>
                               </div>
                             )}
                           </div>
                         )}
 
-                        {/* PI Approval Stage - Only PIs can approve/reject at this stage */}
+                        {/* PI Approval Stage (shown only if PI approval is required) */}
                         {match.status === 'pending_pi_approval' && (
                           <div className="space-y-3 pt-4">
                             <div className="space-y-2">
-                              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                                <p className="text-sm text-purple-800 flex items-center gap-2">
-                                  <Shield className="h-4 w-4" />
-                                  <strong>PI Approval Required:</strong> CRC has approved. Final PI approval needed to proceed with screening.
-                                </p>
-                              </div>
+                              {workflowConfig.requirePIApproval ? (
+                                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                                  <p className="text-sm text-purple-800 flex items-center gap-2">
+                                    <Shield className="h-4 w-4" />
+                                    <strong>PI Approval Required:</strong> Initial review complete. Final PI approval needed to proceed with screening.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                  <p className="text-sm text-blue-800 flex items-center gap-2">
+                                    <Info className="h-4 w-4" />
+                                    <strong>Optional Review Stage:</strong> PI approval is optional for this workflow.
+                                  </p>
+                                </div>
+                              )}
                               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                                 <p className="text-xs text-amber-800">
                                   ⚠️ <strong>Regulatory Reminder:</strong> Approval is based on preliminary AI match. Eligibility must be confirmed at the screening visit. Please recheck all inclusion/exclusion criteria during screening.
                                 </p>
                               </div>
                             </div>
-                            {user?.role === 'PI' || user?.role === 'StudyAdmin' ? (
+                            {canApprove(match.status) ? (
                               <div className="flex gap-3">
                                 <Button
                                   variant="default"
@@ -328,7 +380,7 @@ export default function Matches() {
                                   onClick={() => handleReviewClick(match, 'approve')}
                                 >
                                   <CheckCircle2 className="mr-2 h-4 w-4" />
-                                  Final Approval (PI)
+                                  {user?.role === 'PI' ? 'Final Approval (PI)' : 'Approve for Screening'}
                                 </Button>
                                 <Button
                                   variant="destructive"
@@ -341,8 +393,11 @@ export default function Matches() {
                               </div>
                             ) : (
                               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <p className="text-sm text-gray-600 text-center">
-                                  Only Principal Investigator (PI) can provide final approval.
+                                <p className="text-sm text-gray-600 text-center flex items-center justify-center gap-2">
+                                  <AlertCircle className="h-4 w-4" />
+                                  {workflowConfig.requirePIApproval 
+                                    ? 'Only Principal Investigator (PI) can provide final approval.'
+                                    : 'You don\'t have permission to approve at this stage.'}
                                 </p>
                               </div>
                             )}
@@ -355,7 +410,7 @@ export default function Matches() {
                             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                               <p className="text-sm text-green-800 flex items-center gap-2">
                                 <CheckCircle2 className="h-4 w-4" />
-                                <strong>Approved for Screening:</strong> This match has completed 2-level approval (CRC + PI) and patient can proceed with screening visit.
+                                <strong>Approved for Screening:</strong> This match has completed the approval workflow and patient can proceed with screening visit.
                               </p>
                             </div>
                             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
